@@ -102,8 +102,30 @@ function changeDirection(e) {
         direction = { x: 1, y: 0 };
 }
 
+// 在 snake.js 的 gameOver 函式中
 function gameOver() {
     clearInterval(loop);
-    alert(`遊戲結束！你的分數是：${score}`);
-    location.reload();
+    
+    // --- 新增：上傳分數到後端 ---
+    fetch('/api/submit_score', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            game_name: 'snake',  // 注意：這裡是遊戲代號 (snake, dino, whac, memory)
+            score: score         // 這裡是變數 score
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.status === 'success') {
+            alert(`遊戲結束！你的分數 ${score} 已上傳。`);
+        } else {
+            alert('分數上傳失敗，請確認登入狀態。');
+        }
+        location.reload(); // 重新整理或跳回大廳
+    })
+    .catch(error => console.error('Error:', error));
+    // ---------------------------
 }

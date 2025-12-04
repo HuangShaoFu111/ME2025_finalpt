@@ -105,5 +105,29 @@ function endGame() {
     clearInterval(timerInterval);
     clearInterval(moveInterval);
     ball.style.display = "none";
-    alert(`遊戲結束！你的分數是：${score}`);
+
+    // --- 新增：上傳分數到後端 ---
+    fetch('/api/submit_score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            game_name: 'whac',
+            score: score
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(`遊戲結束！你的分數是：${score} (已上傳)`);
+        } else {
+            alert(`遊戲結束！你的分數是：${score} (未登入，未儲存)`);
+        }
+        // 點擊確定後，選擇要重新開始還是回首頁，這裡範例為重整
+        location.reload(); 
+    })
+    .catch(err => {
+        console.error(err);
+        alert(`遊戲結束！你的分數是：${score}`);
+    });
+    // ---------------------------
 }

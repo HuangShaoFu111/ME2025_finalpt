@@ -91,10 +91,36 @@ function matchFound() {
 
     resetTurn();
 
+    // 檢查是否所有卡片都配對成功
     if (document.querySelectorAll(".matched").length === cards.length) {
-        setTimeout(() => {
-            alert(`你完成了！共 ${moves} 次配對，用時 ${timer} 秒`);
-        }, 200);
+        clearInterval(interval); // 停止計時器
+
+        // --- 計算積分 (讓越快完成的人分數越高) ---
+        // 基礎分 1000，每過1秒扣2分，每多1步扣5分 (最低 0 分)
+        let calculatedScore = Math.max(0, 1000 - (timer * 2) - (moves * 5));
+
+        // --- 新增：上傳分數到後端 ---
+        fetch('/api/submit_score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                game_name: 'memory',
+                score: calculatedScore
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            let msg = `恭喜完成！\n時間：${timer}秒\n步數：${moves}\n積分：${calculatedScore}`;
+            if(data.status === 'success') {
+                msg += "\n(分數已上傳排行榜)";
+            } else {
+                msg += "\n(未登入，分數未儲存)";
+            }
+            alert(msg);
+            location.reload(); // 重新開始
+        })
+        .catch(err => console.error(err));
+        // ---------------------------
     }
 }
 

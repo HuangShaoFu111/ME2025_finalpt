@@ -316,6 +316,7 @@ function gameOver() {
     clearInterval(gameLoop);
     gameRunning = false;
 
+    // 更新本地最高分邏輯 (保留原功能)
     if (score > bestScore) {
         bestScore = score;
         localStorage.setItem("bestDinoScore", bestScore);
@@ -323,6 +324,27 @@ function gameOver() {
 
     finalScoreEl.textContent = score;
     bestScoreEl.textContent = bestScore;
-
+    
+    // 顯示遊戲結束面板
     gameOverPanel.classList.remove("hidden");
+
+    // --- 新增：上傳分數到後端 ---
+    fetch('/api/submit_score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            game_name: 'dino', 
+            score: score
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            console.log("分數上傳成功");
+        } else {
+            console.log("未登入，分數未儲存");
+        }
+    })
+    .catch(err => console.error("上傳錯誤:", err));
+    // ---------------------------
 }
