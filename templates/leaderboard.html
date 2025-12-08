@@ -5,6 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏆 遊戲排行榜</title>
     <style>
+        /* === 右上角使用者選單 CSS === */
+        .user-menu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: inline-block;
+        }
+        .avatar-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid #ffd84d;
+            cursor: pointer;
+            overflow: hidden;
+            transition: 0.2s;
+            background: white;
+        }
+        .avatar-btn:hover { transform: scale(1.1); box-shadow: 0 0 10px #ffd84d; }
+        .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            font-size: 14px;
+            text-align: left;
+        }
+        .dropdown-content a:hover { background-color: #f1f1f1; }
+        .user-menu:hover .dropdown-content { display: block; }
+
+        /* === 排行榜原有樣式 === */
         body {
             background: linear-gradient(135deg, #1e3c72, #2a5298);
             font-family: "Segoe UI", sans-serif;
@@ -15,7 +58,6 @@
         }
         h1 { margin-bottom: 30px; letter-spacing: 2px; }
         
-        /* === 標籤切換區 === */
         .tabs {
             display: flex;
             justify-content: center;
@@ -40,7 +82,6 @@
             border-color: #ffd84d;
         }
 
-        /* === 排行榜表格 === */
         .table-container {
             max-width: 600px;
             margin: 0 auto;
@@ -61,7 +102,6 @@
         th { color: #ffd84d; font-size: 1.1em; }
         tr:last-child td { border-bottom: none; }
         
-        /* === 排名樣式 === */
         .rank-1 { color: #ffd700; font-weight: bold; font-size: 1.2em; text-shadow: 0 0 10px #ffd700; }
         .rank-2 { color: #c0c0c0; font-weight: bold; font-size: 1.1em; }
         .rank-3 { color: #cd7f32; font-weight: bold; font-size: 1.1em; }
@@ -80,6 +120,23 @@
     </style>
 </head>
 <body>
+
+    <div class="user-menu">
+        <div class="avatar-btn">
+            {% if user.avatar == 'default.png' %}
+                <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=random" alt="User">
+            {% else %}
+                <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}" alt="User">
+            {% endif %}
+        </div>
+        <div class="dropdown-content">
+            <div style="padding: 10px; background: #ffd84d; font-weight: bold; text-align: center;">
+                {{ user.username }}
+            </div>
+            <a href="/profile">⚙️ 設定與頭貼</a>
+            <a href="/logout" style="color: red;">🚪 登出</a>
+        </div>
+    </div>
 
     <h1>🏆 榮譽排行榜 Leaderboard</h1>
 
@@ -110,18 +167,14 @@
     <a href="/lobby" class="back-btn">回遊戲大廳</a>
 
     <script>
-        // 初始化載入
         document.addEventListener("DOMContentLoaded", () => {
             loadRank('snake');
         });
 
         function loadRank(gameName) {
-            // 1. 更新標籤樣式
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            // 找到點擊的按鈕並加 active (這裡用簡單文字比對，或直接由 event 傳入 this 也可以)
             event && event.target.classList.add('active');
 
-            // 2. 更新標題
             const titleMap = {
                 'snake': '貪吃蛇 Snake',
                 'dino': 'Dino 跑酷',
@@ -130,14 +183,13 @@
             };
             document.getElementById('gameTitle').textContent = `${titleMap[gameName] || gameName} - Top 10`;
 
-            // 3. 呼叫後端 API
             const tbody = document.querySelector("#rankTable tbody");
             tbody.innerHTML = '<tr><td colspan="4">載入中...</td></tr>';
 
             fetch(`/api/get_rank/${gameName}`)
                 .then(response => response.json())
                 .then(data => {
-                    tbody.innerHTML = ""; // 清空
+                    tbody.innerHTML = ""; 
 
                     if (data.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="4">目前還沒有紀錄，快去挑戰吧！</td></tr>';
@@ -147,13 +199,11 @@
                     data.forEach((row, index) => {
                         const tr = document.createElement("tr");
                         
-                        // 處理前三名樣式
                         let rankClass = "";
                         if (index === 0) rankClass = "rank-1";
                         if (index === 1) rankClass = "rank-2";
                         if (index === 2) rankClass = "rank-3";
 
-                        // 日期只取前 10 碼 (YYYY-MM-DD) 比較簡潔
                         const dateStr = row.timestamp ? row.timestamp.substring(0, 10) : '-';
 
                         tr.innerHTML = `
@@ -167,10 +217,4 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    tbody.innerHTML = '<tr><td colspan="4" style="color:red">載入失敗</td></tr>';
-                });
-        }
-    </script>
-
-</body>
-</html>
+                    tbody.innerHTML = '<tr><td colspan="4" style="color:red">載入失敗</td>

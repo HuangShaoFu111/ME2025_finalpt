@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人設定 - Retro Arcade Hub</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #2c3e50, #4ca1af);
+            font-family: "Segoe UI", sans-serif;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 40px;
+            border-radius: 15px;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        h2 { margin-bottom: 30px; border-bottom: 2px solid #ffd84d; display: inline-block; padding-bottom: 10px; }
+        
+        /* 頭貼顯示 */
+        .avatar-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 4px solid #ffd84d;
+            object-fit: cover;
+            margin-bottom: 20px;
+            background: white;
+        }
+
+        /* 表單區塊 */
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="file"] {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .btn-action { background: #4cd964; color: white; width: 100%; margin-top: 5px; }
+        .btn-action:hover { background: #40b653; }
+        
+        .btn-danger { background: #ff6b6b; color: white; margin-top: 10px; width: 100%; }
+        .btn-danger:hover { background: #ff5252; }
+
+        .back-link { margin-top: 20px; display: block; color: #ffd84d; text-decoration: none; }
+
+        .msg { padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        .error { background: rgba(255, 0, 0, 0.3); color: #ffcccc; }
+        .success { background: rgba(0, 255, 0, 0.2); color: #ccffcc; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>⚙️ 個人設定</h2>
+
+        {% if error %}
+            <div class="msg error">{{ error }}</div>
+        {% endif %}
+        {% if success %}
+            <div class="msg success">{{ success }}</div>
+        {% endif %}
+
+        {% if user.avatar == 'default.png' %}
+            <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=random" class="avatar-preview">
+        {% else %}
+            <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}" class="avatar-preview">
+        {% endif %}
+        <h3>{{ user.username }}</h3>
+
+        <div class="section">
+            <form action="/profile" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="upload_avatar">
+                <label>更換頭貼圖片：</label>
+                <input type="file" name="file" accept="image/*" required>
+                <button type="submit" class="btn-action">上傳並更新</button>
+            </form>
+        </div>
+
+        <div class="section">
+            <form action="/profile" method="POST">
+                <input type="hidden" name="action" value="update_id">
+                <label>更改顯示名稱：</label>
+                <input type="text" name="username" value="{{ user.username }}" required>
+                <button type="submit" class="btn-action">儲存新名稱</button>
+            </form>
+        </div>
+
+        <div class="section" style="border: 1px solid #ff6b6b;">
+            <p style="color: #ff6b6b; margin: 0 0 10px 0;">危險區域</p>
+            <form action="/profile" method="POST" onsubmit="return confirm('確定要刪除帳號嗎？此動作無法復原！');">
+                <input type="hidden" name="action" value="delete_account">
+                <button type="submit" class="btn-danger">刪除帳號</button>
+            </form>
+        </div>
+
+        <a href="/lobby" class="back-link">← 返回遊戲大廳</a>
+    </div>
+
+</body>
+</html>
