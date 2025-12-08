@@ -3,69 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>註冊 - Retro Arcade Hub</title>
-    <style>
-        body {
-            background: linear-gradient(135deg, #141e30, #243b55);
-            font-family: "Segoe UI", sans-serif;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .container {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            text-align: center;
-            width: 300px;
-            backdrop-filter: blur(5px);
-        }
-        h2 { margin-bottom: 20px; }
-        input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #4cd964;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        button:hover { background: #40b653; }
-        .error { color: #ff6b6b; margin-bottom: 10px; font-size: 0.9em; }
-        .link { margin-top: 15px; font-size: 0.9em; }
-        .link a { color: #ffd84d; text-decoration: none; }
-    </style>
+    <title>Register - Arcade Hub</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h2>📝 註冊帳號</h2>
-
+    <div class="glass-panel" style="width: 350px; text-align: center; padding: 40px;">
+        <h2 style="margin-bottom: 10px;">CREATE ACCOUNT</h2>
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 30px;">Join the arcade arena today</p>
+        
         {% if error %}
-            <div class="error">{{ error }}</div>
+            <div style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px;">
+                {{ error }}
+            </div>
         {% endif %}
 
         <form action="/register" method="POST">
-            <input type="text" name="username" placeholder="設定使用者名稱" required>
-            <input type="password" name="password" placeholder="設定密碼" required>
-            <button type="submit">確認註冊</button>
+            <div style="margin-bottom: 20px;">
+                <input type="text" name="username" placeholder="Choose a Username" required>
+            </div>
+            <div style="margin-bottom: 30px;">
+                <input type="password" name="password" placeholder="Set a Password" required>
+            </div>
+            <button type="submit" style="width: 100%; padding: 12px;">REGISTER ➔</button>
         </form>
 
-        <div class="link">
-            已經有帳號了？ <a href="/">返回登入</a>
+        <div style="margin-top: 25px; font-size: 14px; color: var(--text-muted);">
+            Already a member? <a href="/" style="color: var(--accent); text-decoration: none; font-weight: bold;">Login Here</a>
         </div>
     </div>
 </body>

@@ -3,167 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遊戲中心 Game Hub</title>
-
+    <title>Retro Arcade Hub</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
     <style>
-        /* === 右上角使用者選單 CSS === */
-        .user-menu {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            display: inline-block;
-        }
-        .avatar-btn {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: 3px solid #ffd84d;
-            cursor: pointer;
-            overflow: hidden;
-            transition: 0.2s;
-            background: white;
-        }
-        .avatar-btn:hover { transform: scale(1.1); box-shadow: 0 0 10px #ffd84d; }
-        .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            right: 0;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            border-radius: 8px;
-            overflow: hidden;
-            z-index: 1;
-        }
-        .dropdown-content a {
-            color: black;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            font-size: 14px;
-            text-align: left;
-        }
-        .dropdown-content a:hover { background-color: #f1f1f1; }
-        .user-menu:hover .dropdown-content { display: block; }
-
-        /* === 原本的頁面樣式 === */
-        body {
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #141e30, #243b55);
-            font-family: "Segoe UI", sans-serif;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
-
-        h1 {
-            margin-top: 40px;
-            font-size: 48px;
-            letter-spacing: 2px;
-        }
-
-        .game-container {
-            margin-top: 40px;
+        .game-grid {
             display: grid;
-            grid-template-columns: repeat(2, 260px);
+            grid-template-columns: repeat(2, 1fr);
             gap: 30px;
+            max-width: 800px;
+            margin-top: 20px;
         }
 
         .game-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(5px);
-            padding: 20px;
-            height: 140px;
-            border-radius: 12px;
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 30px;
             text-align: center;
             cursor: pointer;
-            transition: 0.25s;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 卡片懸浮光暈 */
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: 0.4s;
         }
 
         .game-card:hover {
-            background: rgba(255, 255, 255, 0.22);
-            transform: scale(1.08);
+            transform: translateY(-10px) scale(1.02);
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(6, 182, 212, 0.2);
         }
 
-        .game-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
+        .game-card:hover::before { opacity: 1; }
 
-        .game-desc {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        
+        .game-icon { font-size: 40px; margin-bottom: 15px; display: block; }
+        .game-title { font-size: 20px; font-weight: bold; color: var(--text-main); margin-bottom: 8px; }
+        .game-desc { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
         .btn-leaderboard {
-            margin-top: 40px;
-            padding: 12px 24px;
-            background: #ffd84d;
-            color: black;
-            font-weight: bold;
-            border-radius: 8px;
+            margin-top: 50px;
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 12px 30px;
             text-decoration: none;
-            transition: 0.2s;
+            border-radius: 50px;
+            font-weight: bold;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
         }
         .btn-leaderboard:hover {
-            background: #ffca2a;
+            background: var(--gold);
+            color: black;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
         }
     </style>
-
 </head>
 <body>
 
     <div class="user-menu">
         <div class="avatar-btn">
             {% if user.avatar == 'default.png' %}
-                <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=random" alt="User">
+                <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=0f172a&color=fff" alt="User">
             {% else %}
                 <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}" alt="User">
             {% endif %}
         </div>
         <div class="dropdown-content">
-            <div style="padding: 10px; background: #ffd84d; font-weight: bold; text-align: center;">
-                {{ user.username }}
-            </div>
+            <div>Hi, {{ user.username }}</div>
             <a href="/profile">⚙️ 設定與頭貼</a>
-            <a href="/logout" style="color: red;">🚪 登出</a>
+            <a href="/logout" style="color: #ef4444;">🚪 登出系統</a>
         </div>
     </div>
 
-    <h1>🎮 遊戲中心 Game Hub</h1>
+    <h1>⚡ ARCADE HUB ⚡</h1>
+    <p style="color: var(--text-muted); margin-top: -20px; margin-bottom: 40px;">Select your challenge</p>
 
-    <div class="game-container">
+    <div class="game-grid">
         <div class="game-card" onclick="location.href='/game/whac'">
-            <div class="game-title">點擊小球</div>
-            <div class="game-desc">反應力挑戰，球越來越快！</div>
+            <span class="game-icon">🔴</span>
+            <div class="game-title">Whac-A-Ball</div>
+            <div class="game-desc">極限反應挑戰<br>球體速度將隨時間越來越快</div>
         </div>
 
         <div class="game-card" onclick="location.href='/game/memory'">
-            <div class="game-title">翻牌記憶遊戲</div>
-            <div class="game-desc">訓練記憶力，配對全部卡片。</div>
+            <span class="game-icon">🃏</span>
+            <div class="game-title">Memory Flip</div>
+            <div class="game-desc">腦力記憶對決<br>以最少步數完成卡片配對</div>
         </div>
 
         <div class="game-card" onclick="location.href='/game/snake'">
-            <div class="game-title">貪吃蛇</div>
-            <div class="game-desc">吃食物、變長，別撞牆！</div>
+            <span class="game-icon">🐍</span>
+            <div class="game-title">Neon Snake</div>
+            <div class="game-desc">經典貪食蛇<br>在無限邊界中吞噬與生長</div>
         </div>
 
         <div class="game-card" onclick="location.href='/game/dino'">
-            <div class="game-title">Dino 跑酷</div>
-            <div class="game-desc">跳躍閃障礙，跑越久分越高。</div>
+            <span class="game-icon">🦖</span>
+            <div class="game-title">Dino Run</div>
+            <div class="game-desc">恐龍跑酷<br>跳躍障礙，衝擊最高積分</div>
         </div>
     </div>
 
-    <a href="/leaderboard" class="btn-leaderboard">🏆 查看排行榜</a>
+    <a href="/leaderboard" class="btn-leaderboard">🏆 查看英雄榜 Leaderboard</a>
 
 </body>
 </html>
