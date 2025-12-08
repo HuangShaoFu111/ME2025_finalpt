@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登入 - Retro Arcade Hub</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #141e30, #243b55);
+            font-family: "Segoe UI", sans-serif;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 300px;
+            backdrop-filter: blur(5px);
+        }
+        h2 { margin-bottom: 20px; }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            box-sizing: border-box; /* 讓 padding 不會撐大寬度 */
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #ffd84d;
+            color: black;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background: #ffca2a; }
+        .error { color: #ff6b6b; margin-bottom: 10px; font-size: 0.9em; }
+        .link { margin-top: 15px; font-size: 0.9em; }
+        .link a { color: #4cd964; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🎮 會員登入</h2>
+        
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form action="/login" method="POST">
+            <input type="text" name="username" placeholder="使用者名稱" required>
+            <input type="password" name="password" placeholder="密碼" required>
+            <button type="submit">登入</button>
+        </form>
+
+        <div class="link">
+            還沒有帳號嗎？ <a href="/register">立即註冊</a>
+        </div>
+    </div>
+</body>
+</html>
