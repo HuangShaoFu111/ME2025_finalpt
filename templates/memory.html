@@ -54,7 +54,7 @@
 <body>
 
     <div class="user-menu">
-        <div class="user-profile-btn" onclick="location.href='/profile'">
+        <div class="user-profile-btn" style="cursor: default;"> 
             <div class="avatar-display">
                 {% if user.avatar == 'default.png' %}
                     <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=0f172a&color=fff" alt="User Avatar">
@@ -64,6 +64,7 @@
             </div>
             <span class="username-display">{{ user.username }}</span>
         </div>
+    </div>
         
         <div class="dropdown-content">
             <div>Hi, {{ user.username }}</div>

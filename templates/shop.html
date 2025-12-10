@@ -10,20 +10,15 @@
 <body>
 
     <div class="user-menu">
-        <div class="user-profile-btn" onclick="location.href='/profile'">
+        <div class="user-profile-btn" style="cursor: default;"> 
             <div class="avatar-display">
                 {% if user.avatar == 'default.png' %}
-                    <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=0f172a&color=fff" alt="User">
+                    <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=0f172a&color=fff" alt="User Avatar">
                 {% else %}
-                    <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}" alt="User">
+                    <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}" alt="User Avatar">
                 {% endif %}
             </div>
             <span class="username-display">{{ user.username }}</span>
-        </div>
-        <div class="dropdown-content">
-            <div>Hi, {{ user.username }}</div>
-            <a href="/profile">⚙️ Settings</a>
-            <a href="/logout" style="color: #ef4444;">🚪 Logout</a>
         </div>
     </div>
 
