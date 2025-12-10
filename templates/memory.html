@@ -4,52 +4,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>記憶翻牌遊戲</title>
+    <title>Neon Memory</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='memory.css') }}">
-
-    <style>
-        /* === 右上角使用者選單 CSS === */
-        .user-menu {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            display: inline-block;
-        }
-        .avatar-btn {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: 3px solid #ffd84d;
-            cursor: pointer;
-            overflow: hidden;
-            transition: 0.2s;
-            background: white;
-        }
-        .avatar-btn:hover { transform: scale(1.1); box-shadow: 0 0 10px #ffd84d; }
-        .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            right: 0;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            border-radius: 8px;
-            overflow: hidden;
-            z-index: 1;
-        }
-        .dropdown-content a {
-            color: black;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            font-size: 14px;
-            text-align: left;
-        }
-        .dropdown-content a:hover { background-color: #f1f1f1; }
-        .user-menu:hover .dropdown-content { display: block; }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
@@ -65,23 +22,39 @@
             <span class="username-display">{{ user.username }}</span>
         </div>
     </div>
-        
-        <div class="dropdown-content">
-            <div>Hi, {{ user.username }}</div>
-            <a href="/profile">⚙️ Settings</a>
-            <a href="/logout" style="color: #ef4444;">🚪 Logout</a>
+
+    <h1 class="title">MEMORY FLIP</h1>
+
+    <div class="game-container">
+        <div class="info-bar">
+            <div class="stat-box"><i class="fa-solid fa-shoe-prints"></i> <span id="moves">0</span></div>
+            <div class="stat-box"><i class="fa-regular fa-clock"></i> <span id="timer">0</span>s</div>
+            
+            <div class="action-buttons">
+                <button id="restartBtn" class="btn-icon"><i class="fa-solid fa-rotate-right"></i></button>
+                <button onclick="location.href='/lobby'" class="btn-icon"><i class="fa-solid fa-house"></i></button>
+            </div>
+        </div>
+
+        <div id="gameBoard" class="board">
+            </div>
+    </div>
+
+    <div id="gameOverModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>LEVEL CLEARED!</h2>
+            <div class="result-stats">
+                <p>Time: <span id="finalTime" class="highlight">0</span>s</p>
+                <p>Moves: <span id="finalMoves" class="highlight">0</span></p>
+                <p>Score: <span id="finalScore" class="highlight-score">0</span></p>
+            </div>
+            <p id="uploadStatus" class="status-text">Uploading score...</p>
+            <div class="modal-buttons">
+                <button id="modalRestartBtn">Play Again</button>
+                <button class="btn-secondary" onclick="location.href='/lobby'">Back to Lobby</button>
+            </div>
         </div>
     </div>
-
-    <h1 class="title">Memory Flip Game</h1>
-    <div class="info">
-        <div>Moves: <span id="moves">0</span></div>
-        <div>Time: <span id="timer">0</span> seconds</div>
-        <button id="restartBtn">Restart</button>
-        <button onclick="location.href='/lobby'">Back to Lobby</button>
-    </div>
-
-    <div id="gameBoard" class="board"></div>
 
     <script src="{{ url_for('static', filename='memory.js') }}"></script>
 </body>
