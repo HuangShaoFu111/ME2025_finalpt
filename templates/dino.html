@@ -67,17 +67,17 @@
         
         <div class="dropdown-content">
             <div>Hi, {{ user.username }}</div>
-            <a href="/profile">⚙️ 設定與頭貼</a>
-            <a href="/logout" style="color: #ef4444;">🚪 登出系統</a>
+            <a href="/profile">⚙️ Settings</a>
+            <a href="/logout" style="color: #ef4444;">🚪 Logout</a>
         </div>
     </div>
 
-    <h1 class="title">🦖 Dino 跑酷遊戲</h1>
+    <h1 class="title">🦖 Dino Running Game</h1>
 
     <div class="panel">
-        <div>分數：<span id="score">0</span></div>
-        <button id="startBtn">開始遊戲</button>
-        <button onclick="location.href='/lobby'">返回大廳</button>
+        <div>Score: <span id="score">0</span></div>
+        <button id="startBtn">Start Game</button>
+        <button onclick="location.href='/lobby'">Back to Lobby</button>
     </div>
 
     <div class="game-container">
@@ -86,9 +86,9 @@
         <div id="gameOverPanel" class="hidden">
             <div class="panel-box">
                 <h2>GAME OVER</h2>
-                <p>得分：<span id="finalScore"></span></p>
-                <p>最高分：<span id="bestScore"></span></p>
-                <button id="restartBtn">重新開始</button>
+                <p>Score: <span id="finalScore"></span></p>
+                <p>Best Score: <span id="bestScore"></span></p>
+                <button id="restartBtn">Restart</button>
             </div>
         </div>
     </div>

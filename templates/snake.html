@@ -4,7 +4,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>貪吃蛇遊戲</title>
+    <title>SNAKE GAME</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='snake.css') }}">
     
     <style>
@@ -67,16 +67,16 @@
         
         <div class="dropdown-content">
             <div>Hi, {{ user.username }}</div>
-            <a href="/profile">⚙️ 設定與頭貼</a>
-            <a href="/logout" style="color: #ef4444;">🚪 登出系統</a>
+            <a href="/profile">⚙️ Settings</a>
+            <a href="/logout" style="color: #ef4444;">🚪 Logout</a>
         </div>
     </div>
 
-    <h1 class="title">貪吃蛇 Snake Game</h1>
+    <h1 class="title">Snake Game</h1>
 
     <div class="info">
-        <div>分數：<span id="score">0</span></div>
-        <button onclick="location.href='/lobby'">返回大廳</button>
+        <div>Score: <span id="score">0</span></div>
+        <button onclick="location.href='/lobby'">Back to Lobby</button>
     </div>
 
     <canvas id="gameCanvas" width="400" height="400"></canvas>

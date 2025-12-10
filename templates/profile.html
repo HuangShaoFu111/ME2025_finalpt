@@ -112,23 +112,23 @@
         <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 25px 0;">
 
         <div style="margin-bottom: 25px;">
-            <div class="section-title">更換頭像 (Change Avatar)</div>
+            <div class="section-title">Change Avatar</div>
             <form action="/profile" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; flex-direction: column;">
                 <input type="hidden" name="action" value="upload_avatar">
                 <input type="file" name="file" accept="image/*" required>
                 <button type="submit" class="btn-primary" style="width: 100%;">
-                    ⬆️ 上傳更新 (Update)
+                    ⬆️ Update
                 </button>
             </form>
         </div>
 
         <div style="margin-bottom: 25px;">
-            <div class="section-title">顯示名稱 (Display Name)</div>
+            <div class="section-title">Display Name</div>
             <form action="/profile" method="POST" style="display: flex; gap: 10px;">
                 <input type="hidden" name="action" value="update_id">
-                <input type="text" name="username" value="{{ user.username }}" required placeholder="輸入新名稱">
+                <input type="text" name="username" value="{{ user.username }}" required placeholder="Enter new name">
                 <button type="submit" class="btn-primary" style="white-space: nowrap;">
-                    💾 儲存
+                    💾 Save
                 </button>
             </form>
         </div>
@@ -138,14 +138,14 @@
             <form action="/profile" method="POST" onsubmit="return confirm('確定要刪除帳號嗎？所有分數紀錄都將消失且無法復原！');">
                 <input type="hidden" name="action" value="delete_account">
                 <button type="submit" class="btn btn-danger">
-                    🗑️ 刪除帳號 (Delete Account)
+                    🗑️ Delete MY Account
                 </button>
             </form>
         </div>
 
         <div style="margin-top: 30px;">
             <a href="/lobby" style="color: var(--text-muted); text-decoration: none; font-size: 14px; transition: 0.3s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-muted)'">
-                ← Back to Arcade Hall
+                ← Back to Lobby
             </a>
         </div>
     </div>

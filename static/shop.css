@@ -1,53 +1,79 @@
-/* 儲值頁面專屬樣式 */
+/* shop.css */
 
 /* 調整主容器位置，讓內容居中 */
 .shop-container {
     width: 100%;
-    max-width: 800px;
-    margin-top: 50px;
+    max-width: 900px; /* 稍微加寬一點讓卡片不擁擠 */
+    margin: 50px auto; /* 上下50px，左右自動置中 */
     text-align: center;
+    padding: 0 20px;
 }
 
 /* 儲值選項網格 */
 .recharge-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* RWD 響應式設計，手機版會自動換行 */
     gap: 30px;
-    margin-top: 30px;
+    margin-top: 40px;
 }
 
 /* 單一選項卡片 */
 .recharge-card {
-    background: rgba(30, 41, 59, 0.4);
+    background: rgba(30, 41, 59, 0.6); /* 稍微加深背景增加對比 */
     border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: 16px;
+    padding: 30px 20px;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
     position: relative;
+    
+    /* 關鍵修改：讓內容垂直排列並對齊底部 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100%; /* 確保在 Grid 中填滿高度 */
+    box-sizing: border-box;
 }
 
 .recharge-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-8px);
     border-color: var(--accent);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5), 0 0 10px var(--accent);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 15px var(--accent);
 }
 
 .card-price {
     font-family: 'Orbitron', sans-serif;
-    font-size: 2em;
+    font-size: 2.2em;
     color: var(--primary);
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+/* 描述文字樣式 */
+.recharge-card p {
+    margin: 5px 0;
+    color: #e2e8f0;
 }
 
 .card-bonus {
-    font-size: 0.9em;
+    font-size: 0.95em;
     color: var(--gold);
     font-weight: 600;
+    margin-bottom: 10px;
 }
 
 /* 硬幣圖標 */
 .coin-icon {
-    font-size: 1.5em;
+    font-size: 1.2em;
     color: var(--gold);
+    vertical-align: middle;
+}
+
+/* 按鈕樣式優化 */
+.recharge-card .btn-primary {
+    margin-top: auto; /* 關鍵：將按鈕推到卡片最底部 */
+    width: 80%;       /* 統一按鈕寬度 */
+    padding: 10px 0;
+    font-weight: bold;
 }

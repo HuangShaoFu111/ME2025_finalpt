@@ -67,18 +67,17 @@
         
         <div class="dropdown-content">
             <div>Hi, {{ user.username }}</div>
-            <a href="/profile">⚙️ 設定與頭貼</a>
-            <a href="/logout" style="color: #ef4444;">🚪 登出系統</a>
+            <a href="/profile">⚙️ Settings</a>
+            <a href="/logout" style="color: #ef4444;">🚪 Logout</a>
         </div>
     </div>
 
-    <h1 class="title">記憶翻牌遊戲</h1>
-
+    <h1 class="title">Memory Flip Game</h1>
     <div class="info">
-        <div>配對次數：<span id="moves">0</span></div>
-        <div>時間：<span id="timer">0</span> 秒</div>
-        <button id="restartBtn">重新開始</button>
-        <button onclick="location.href='/lobby'">返回大廳</button>
+        <div>Moves: <span id="moves">0</span></div>
+        <div>Time: <span id="timer">0</span> seconds</div>
+        <button id="restartBtn">Restart</button>
+        <button onclick="location.href='/lobby'">Back to Lobby</button>
     </div>
 
     <div id="gameBoard" class="board"></div>

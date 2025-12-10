@@ -119,7 +119,7 @@
 <body>
 
     <div class="user-menu">
-        <div class="user-profile-btn" onclick="location.href='/profile'">
+        <div class="user-profile-btn" style="cursor: default;">
             <div class="avatar-display">
                 {% if user.avatar == 'default.png' %}
                     <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=0f172a&color=fff" alt="User">
@@ -129,10 +129,14 @@
             </div>
             <span class="username-display">{{ user.username }}</span>
         </div>
+
         <div class="dropdown-content">
-            <div>Hi, {{ user.username }}</div>
-            <a href="/profile">⚙️ 設定與頭貼</a>
-            <a href="/logout" style="color: #ef4444;">🚪 登出系統</a>
+            <div style="cursor: default; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 5px;">
+                Hi, {{ user.username }}
+            </div>
+
+            <a href="/profile">⚙️ Settings</a>
+            <a href="/logout" style="color: #ef4444;">🚪 Logout</a>
         </div>
     </div>
 
@@ -142,9 +146,9 @@
     <div class="lobby-wrapper-main">
         
         <div class="personal-lobby-container glass-panel">
-            <h2 style="text-align: center; margin-top: 0; margin-bottom: 25px; color: var(--primary);">🎯 我的最高得分</h2>
+            <h2 style="text-align: center; margin-top: 0; margin-bottom: 25px; color: var(--primary);">🎯 My Personal Records</h2>
             <div id="myLobbyScores">
-                <div style="text-align:center; color: var(--text-muted);">載入中...</div>
+                <div style="text-align:center; color: var(--text-muted);">Loading...</div>
             </div>
         </div>
         
@@ -154,29 +158,29 @@
                 <div class="game-card" onclick="location.href='/game/whac'">
                     <span class="game-icon">🔴</span>
                     <div class="game-title">Whac-A-Ball</div>
-                    <div class="game-desc">極限反應挑戰<br>球體速度將隨時間越來越快</div>
+                    <div class="game-desc">Extreme Reaction Challenge<br>The ball speed increases over time</div>
                 </div>
 
                 <div class="game-card" onclick="location.href='/game/memory'">
                     <span class="game-icon">🃏</span>
                     <div class="game-title">Memory Flip</div>
-                    <div class="game-desc">腦力記憶對決<br>以最少步數完成卡片配對</div>
+                    <div class="game-desc">Brain Memory Challenge<br>Match cards with the fewest moves</div>
                 </div>
 
                 <div class="game-card" onclick="location.href='/game/snake'">
                     <span class="game-icon">🐍</span>
-                    <div class="game-title">Neon Snake</div>
-                    <div class="game-desc">經典貪食蛇<br>在無限邊界中吞噬與生長</div>
+                    <div class="game-title">Snake Game</div>
+                    <div class="game-desc">Classic Snake Game<br>Devour and grow within infinite boundaries</div>
                 </div>
 
                 <div class="game-card" onclick="location.href='/game/dino'">
                     <span class="game-icon">🦖</span>
                     <div class="game-title">Dino Run</div>
-                    <div class="game-desc">恐龍跑酷<br>跳躍障礙，衝擊最高積分</div>
+                    <div class="game-desc">Dino Running Game<br>Jump over obstacles and aim for the highest score</div>
                 </div>
             </div>
 
-            <a href="/leaderboard" class="btn-leaderboard">🏆 查看英雄榜 Leaderboard</a>
+            <a href="/leaderboard" class="btn-leaderboard">🏆 Leaderboard</a>
         </div>
     </div>
     
@@ -234,15 +238,15 @@
                     container.innerHTML = html;
                 })
                 .catch(err => {
-                    console.error("載入個人戰績失敗:", err);
-                    container.innerHTML = '<div style="text-align:center; color: #ef4444;">載入失敗，請檢查登入狀態及伺服器連線。</div>';
+                    console.error("Failed to load personal scores:", err);
+                    container.innerHTML = '<div style="text-align:center; color: #ef4444;">Failed to load. Please check your login status and server connection.</div>';
                 });
         }
     </script>
     
     <a href="{{ url_for('shop_page') }}" class="fixed-support-btn">
         <span class="icon">💎</span>
-        <span>支持我們</span>
+        <span>Support Us</span>
     </a>
 </body>
 </html>
