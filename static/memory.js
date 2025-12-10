@@ -1,8 +1,9 @@
 const board = document.getElementById("gameBoard");
 const movesEl = document.getElementById("moves");
 const timerEl = document.getElementById("timer");
-const restartBtn = document.getElementById("restartBtn");
-const modalRestartBtn = document.getElementById("modalRestartBtn");
+const startBtn = document.getElementById("startBtn"); // 新的主開始按鈕
+const restartBtn = document.getElementById("restartBtn"); // 右上角重置鈕
+const modalRestartBtn = document.getElementById("modalRestartBtn"); // 結算視窗重玩鈕
 
 // Modal 元素
 const modal = document.getElementById("gameOverModal");
@@ -19,7 +20,7 @@ let lockBoard = false;
 let interval;
 let gameActive = false;
 
-// 圖示 (可以換成更精緻的 emoji 或 FontAwesome class)
+// 圖示
 let icons = ["🚀", "🪐", "👽", "☄️", "🌟", "🛰️", "🛸", "🌑"];
 let cards = [];
 
@@ -31,10 +32,17 @@ function startGame() {
     lockBoard = false;
     gameActive = true;
 
+    // UI 更新
     timerEl.textContent = 0;
     movesEl.textContent = 0;
-    modal.classList.add("hidden"); // 隱藏結算視窗
+    modal.classList.add("hidden"); 
+    
+    // 按鈕狀態：遊戲中禁用開始按鈕，避免誤觸
+    startBtn.textContent = "SEARCHING...";
+    startBtn.disabled = true;
+    startBtn.style.opacity = "0.7";
 
+    // 啟動計時器
     clearInterval(interval);
     interval = setInterval(() => {
         if(gameActive) {
@@ -43,27 +51,22 @@ function startGame() {
         }
     }, 1000);
 
-    // 產生 16 張卡（8 組）
+    // 產生卡片
     cards = [...icons, ...icons].sort(() => Math.random() - 0.5);
-
     board.innerHTML = "";
 
     cards.forEach((icon) => {
-        // 建立 3D 卡片結構
         const card = document.createElement("div");
         card.classList.add("card");
         card.dataset.icon = icon;
 
-        // 內部容器 (負責旋轉)
         const inner = document.createElement("div");
         inner.classList.add("card-inner");
 
-        // 正面 (還沒翻開時看到的樣式)
         const front = document.createElement("div");
         front.classList.add("card-front");
-        front.innerHTML = '<i class="fa-solid fa-question"></i>'; // 問號圖示
+        front.innerHTML = '<i class="fa-solid fa-question"></i>';
 
-        // 背面 (實際內容)
         const back = document.createElement("div");
         back.classList.add("card-back");
         back.textContent = icon;
@@ -79,8 +82,8 @@ function startGame() {
 
 function flipCard(card) {
     if (lockBoard) return;
-    if (card === firstCard) return; // 不能點同一張
-    if (card.classList.contains("matched")) return; // 已經配對的不處理
+    if (card === firstCard) return; 
+    if (card.classList.contains("matched")) return; 
 
     card.classList.add("flipped");
 
@@ -107,13 +110,11 @@ function checkMatch() {
 }
 
 function disableCards() {
-    // 鎖定狀態
     firstCard.classList.add("matched");
     secondCard.classList.add("matched");
     
     resetTurn();
 
-    // 檢查是否結束
     if (document.querySelectorAll(".matched").length === cards.length) {
         gameOver();
     }
@@ -125,7 +126,7 @@ function unflipCards() {
         firstCard.classList.remove("flipped");
         secondCard.classList.remove("flipped");
         resetTurn();
-    }, 1000); // 等 1 秒讓玩家記憶
+    }, 1000); 
 }
 
 function resetTurn() {
@@ -136,20 +137,22 @@ function resetTurn() {
 function gameOver() {
     clearInterval(interval);
     gameActive = false;
+    
+    // 恢復開始按鈕狀態
+    startBtn.textContent = "PLAY AGAIN";
+    startBtn.disabled = false;
+    startBtn.style.opacity = "1";
 
-    // 計算分數：基礎分 1000 - (秒數*2) - (步數*5)
     let calculatedScore = Math.max(0, 1000 - (timer * 2) - (moves * 5));
 
-    // 更新 Modal 資訊
     finalTimeEl.textContent = timer;
     finalMovesEl.textContent = moves;
     finalScoreEl.textContent = calculatedScore;
     uploadStatusEl.textContent = "Uploading score...";
     uploadStatusEl.style.color = "#888";
     
-    modal.classList.remove("hidden"); // 顯示結算視窗
+    modal.classList.remove("hidden"); 
 
-    // 上傳分數
     fetch('/api/submit_score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,10 +164,10 @@ function gameOver() {
     .then(res => res.json())
     .then(data => {
         if(data.status === 'success') {
-            uploadStatusEl.textContent = "✅ Score saved to leaderboard!";
+            uploadStatusEl.textContent = "✅ Score saved!";
             uploadStatusEl.style.color = "#4ade80";
         } else {
-            uploadStatusEl.textContent = "❌ Not logged in, score not saved.";
+            uploadStatusEl.textContent = "❌ Not logged in.";
             uploadStatusEl.style.color = "#ef4444";
         }
     })
@@ -174,9 +177,9 @@ function gameOver() {
     });
 }
 
-// 綁定按鈕事件
+// 綁定事件
+startBtn.addEventListener("click", startGame);
 restartBtn.addEventListener("click", startGame);
 modalRestartBtn.addEventListener("click", startGame);
 
-// 啟動遊戲
-startGame();
+// 注意：這裡不再自動呼叫 startGame()
