@@ -13,10 +13,10 @@ const startBtn = document.getElementById("startBtn");
 // ===================================
 //  核心遊戲常數 (調整這裡控制遊戲速度)
 // ===================================
-const INITIAL_PLATFORM_SPEED = 0.8; // 平台基礎上升速度 (明顯變慢)
-const PLAYER_HORIZONTAL_SPEED = 3.5; // 玩家水平移動速度 (微調)
-const GRAVITY = 0.4;                // 玩家重力加速度 (明顯變慢)
-const MAX_FALL_SPEED = 8;           // 最大自由落體速度限制
+const INITIAL_PLATFORM_SPEED = 0.08; // 平台基礎上升速度 (明顯變慢)
+const PLAYER_HORIZONTAL_SPEED = 0.5; // 玩家水平移動速度 (微調)
+const GRAVITY = 0.004;                // 玩家重力加速度 (明顯變慢)
+const MAX_FALL_SPEED = 0.01;           // 最大自由落體速度限制
 
 // 遊戲狀態 (READY -> PLAYING -> GAMEOVER)
 let gameState = "READY"; 
