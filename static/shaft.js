@@ -19,7 +19,7 @@ let hp = 100;
 let frameCount = 0;
 
 // ⭐ 關鍵修正 1: 掉落重力與移動速度
-const GRAVITY = 0.00005; // 修正掉落速度
+const GRAVITY = 0.0000005; // 修正掉落速度
 const HORIZONTAL_SPEED = 0.5; // 修正水平移動速度
 
 // 玩家設定
@@ -34,7 +34,7 @@ const player = {
 const platforms = [];
 const platformWidth = 70;
 const platformHeight = 15;
-let platformSpeed = 0.0001; // 修正平台基礎上升速度
+let platformSpeed = 0.000001; // 修正平台基礎上升速度
 
 // 按鍵監聽
 const keys = { ArrowLeft: false, ArrowRight: false };
