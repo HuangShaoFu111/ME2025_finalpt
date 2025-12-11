@@ -74,7 +74,7 @@ function update() {
     if (player.x < 0) player.x = 0;
     if (player.x + player.w > canvas.width) player.x = canvas.width - player.w;
 
-    player.vy += 0.2; // 重力
+    player.vy += 0.02; // 重力
     player.y += player.vy;
 
     // 2. 平台移動與生成
