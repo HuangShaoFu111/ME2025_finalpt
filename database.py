@@ -1,7 +1,8 @@
 import sqlite3
 import os
 
-DB_NAME = 'arcade.db'
+# 改放到 /tmp 目錄下，避開 Windows 檔案鎖定問題
+DB_NAME = '/tmp/arcade.db'
 
 def get_db_connection():
     # timeout=30 表示如果資料庫忙碌，程式會願意等待 30 秒，而不是馬上報錯
