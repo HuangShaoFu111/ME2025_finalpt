@@ -67,7 +67,7 @@ function spawnPlatform(y) {
 function resetState() {
     platforms.length = 0;
     for(let i=0; i<6; i++) {
-        spawnPlatform(canvas.height - 100 - i * 50);
+        spawnPlatform(canvas.height - 100 - i * 10);
     }
     
     player.x = 150; 
