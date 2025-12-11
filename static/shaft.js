@@ -17,7 +17,7 @@ let frameCount = 0;
 const player = {
     x: 150, y: 100, w: 20, h: 20,
     vx: 0, vy: 0,
-    speed: 5,
+    speed: 3,
     onGround: false
 };
 
