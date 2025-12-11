@@ -8,16 +8,25 @@ const modal = document.getElementById("gameOverModal");
 const finalScoreEl = document.getElementById("finalScore");
 const uploadStatusEl = document.getElementById("uploadStatus");
 
-let gameState = "PLAYING"; 
+// NEW ELEMENTS
+const startScreen = document.getElementById("startScreen");
+const startBtn = document.getElementById("startBtn");
+
+// 遊戲狀態 (READY -> PLAYING -> GAMEOVER)
+let gameState = "READY"; 
 let score = 0;
 let hp = 100;
 let frameCount = 0;
+
+// ⭐ 關鍵修正 1: 掉落重力與移動速度
+const GRAVITY = 0.35; // 修正掉落速度
+const HORIZONTAL_SPEED = 3; // 修正水平移動速度
 
 // 玩家設定
 const player = {
     x: 150, y: 100, w: 20, h: 20,
     vx: 0, vy: 0,
-    speed: 3,
+    speed: HORIZONTAL_SPEED, // 使用新的常數
     onGround: false
 };
 
@@ -25,23 +34,20 @@ const player = {
 const platforms = [];
 const platformWidth = 70;
 const platformHeight = 15;
-let platformSpeed = 0.5;
+let platformSpeed = 1.5; // 修正平台基礎上升速度
 
 // 按鍵監聽
 const keys = { ArrowLeft: false, ArrowRight: false };
 
-document.addEventListener("keydown", (e) => { if(keys.hasOwnProperty(e.code)) keys[e.code] = true; });
+document.addEventListener("keydown", (e) => { 
+    if(keys.hasOwnProperty(e.code) && gameState === "PLAYING") keys[e.code] = true; 
+});
 document.addEventListener("keyup", (e) => { if(keys.hasOwnProperty(e.code)) keys[e.code] = false; });
 
-// 初始化平台
-function init() {
-    platforms.length = 0;
-    for(let i=0; i<6; i++) {
-        spawnPlatform(100 + i * 90);
-    }
-    gameLoop();
-}
+// NEW: 點擊按鈕啟動遊戲
+startBtn.addEventListener("click", startGame);
 
+// 初始化平台 (保留在函式內，供 resetState 呼叫)
 function spawnPlatform(y) {
     // type: 0=normal(green), 1=spikes(red), 2=fake(translucent)
     let type = 0;
@@ -59,6 +65,41 @@ function spawnPlatform(y) {
     });
 }
 
+// NEW: 重置遊戲狀態
+function resetState() {
+    // 重置平台
+    platforms.length = 0;
+    for(let i=0; i<6; i++) {
+        spawnPlatform(100 + i * 90);
+    }
+    
+    // 重置玩家
+    player.x = 150; 
+    player.y = 100;
+    player.vy = 0;
+    
+    // 重置計分
+    score = 0;
+    hp = 100;
+    frameCount = 0;
+    depthEl.innerText = score;
+    hpEl.innerText = hp;
+    hpEl.style.color = '#4ade80';
+
+    modal.classList.add("hidden");
+    startScreen.classList.add("hidden");
+}
+
+// NEW: 啟動遊戲 (按鈕呼叫)
+function startGame() {
+    if (gameState === "PLAYING") return;
+    
+    resetState();
+    gameState = "PLAYING";
+    // 確保遊戲迴圈在啟動後開始
+    requestAnimationFrame(gameLoop); 
+}
+
 function update() {
     if(gameState !== "PLAYING") return;
 
@@ -74,37 +115,35 @@ function update() {
     if (player.x < 0) player.x = 0;
     if (player.x + player.w > canvas.width) player.x = canvas.width - player.w;
 
-    player.vy += 0.02; // 重力
+    player.vy += GRAVITY; // 使用 GRAVITY
     player.y += player.vy;
 
     // 2. 平台移動與生成
-    // 難度增加：深度越深，平台上升越快
     const currentSpeed = platformSpeed + (score / 500);
     
     platforms.forEach(p => p.y -= currentSpeed);
 
-    // 移除過頂部的平台，並在底部生成新的
     if (platforms[0].y + platformHeight < 0) {
         platforms.shift();
         spawnPlatform(canvas.height);
     }
 
-    // 3. 碰撞檢測
+    // 3. 碰撞檢測 (簡化，以確保程式碼穩定性)
     player.onGround = false;
     platforms.forEach(p => {
-        if (player.vy > 0 && // 往下掉時才判定
+        if (player.vy > 0 && 
             player.x + player.w > p.x &&
             player.x < p.x + p.w &&
             player.y + player.h >= p.y &&
-            player.y + player.h <= p.y + p.h + 5 // 寬容度
+            player.y + player.h <= p.y + p.h + 5 
         ) {
-            if (p.type === 2) return; // 虛假平台穿過
+            if (p.type === 2) return; 
 
             player.y = p.y - player.h;
-            player.vy = -currentSpeed; // 跟著平台往上
+            player.vy = -currentSpeed; 
             player.onGround = true;
 
-            if (p.type === 1) { // 尖刺
+            if (p.type === 1) { 
                 hp -= 2;
                 hpEl.style.color = 'red';
             } else {
@@ -113,16 +152,16 @@ function update() {
         }
     });
 
-    // 頂部尖刺傷害 (碰到天花板)
+    // 頂部尖刺傷害
     if (player.y < 10) {
         hp -= 5;
         player.y = 10;
-        player.vy = 2; // 反彈
+        player.vy = 2; 
     }
 
     hpEl.innerText = Math.floor(hp);
 
-    // 死亡判定 (掉到底部 或 HP歸零)
+    // 死亡判定
     if (player.y > canvas.height || hp <= 0) {
         gameOver();
     }
@@ -134,6 +173,7 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // 畫平台
+    // 這裡我們在 READY/GAMEOVER 狀態也會畫出初始化平台，提供背景
     platforms.forEach(p => {
         if(p.type === 0) ctx.fillStyle = "#4ade80"; // Normal
         if(p.type === 1) ctx.fillStyle = "#ef4444"; // Spikes (Red)
@@ -171,18 +211,22 @@ function draw() {
 }
 
 function gameLoop() {
+    // NEW: 只有在 PLAYING 狀態下才執行 update()
     if(gameState === "PLAYING") {
         update();
-        draw();
-        requestAnimationFrame(gameLoop);
     }
+    // 永遠執行 draw()，即使在 READY 狀態也要繪製初始平台和玩家
+    draw(); 
+    requestAnimationFrame(gameLoop);
 }
 
 function gameOver() {
     gameState = "GAMEOVER";
     modal.classList.remove("hidden");
     finalScoreEl.innerText = score;
-
+    startScreen.classList.remove("hidden"); // 顯示開始畫面，供重玩
+    
+    // ... (分數上傳邏輯保持不變) ...
     fetch('/api/submit_score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,4 +246,8 @@ function gameOver() {
     });
 }
 
-init();
+// 初始啟動：在載入時就啟動 gameLoop，但 update() 會被 gameState 阻擋
+// 這裡我們需要手動呼叫一次 resetState() 確保初始畫面繪製
+resetState(); 
+gameState = "READY"; // 確保 resetState 後狀態正確
+gameLoop();
