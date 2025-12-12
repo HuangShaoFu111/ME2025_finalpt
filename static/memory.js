@@ -64,6 +64,7 @@ function startGame() {
         const card = document.createElement("div");
         card.classList.add("card");
         card.dataset.icon = icon;
+        card.setAttribute("draggable", "false"); // 🚀 新增：禁止拖曳屬性
 
         const inner = document.createElement("div");
         inner.classList.add("card-inner");

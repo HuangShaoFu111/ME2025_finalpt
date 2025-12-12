@@ -143,12 +143,22 @@ button {
 
 /* === 3D 卡片結構 === */
 .card {
+    -webkit-user-select: none; /* Chrome/Safari */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE/Edge */
+    user-select: none;         /* 標準語法 */
+    -webkit-user-drag: none;   /* 防止拖曳元素 */
     width: 100px;
     height: 100px;
     position: relative;
     cursor: pointer;
     background-color: transparent;
 }
+
+.card img, .card i, .card-inner {
+    pointer-events: none; /* 讓點擊事件穿透到 .card，防止選中內部圖示 */
+}
+
 .card-inner {
     position: relative;
     width: 100%;
