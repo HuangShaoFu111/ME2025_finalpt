@@ -255,5 +255,76 @@ def shop_page():
         return redirect(url_for('home'))
     return render_template('shop.html', user=user)
 
+# app.py (修正後的管理員路由)
+
+@app.route('/admin')
+def admin_panel():
+    user = get_current_user()
+    # 1. 檢查是否登入
+    if not user:
+        return redirect(url_for('home'))
+    
+    # 2. 檢查是否為管理員 (修正點：先將 user 轉為 dict 再使用 .get)
+    if not dict(user).get('is_admin', 0):
+        return render_template('index.html', user=user, error="⛔ 權限不足：你不是管理員！")
+
+    # 3. 獲取所有使用者清單
+    all_users = database.get_all_users()
+    return render_template('admin.html', user=user, all_users=all_users)
+
+@app.route('/admin/delete_user/<int:target_user_id>', methods=['POST'])
+def admin_delete_user(target_user_id):
+    user = get_current_user()
+    
+    # 權限驗證 (修正點：同樣加入 dict() 轉換)
+    if not user or not dict(user).get('is_admin', 0):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+
+    # 禁止刪除自己
+    if target_user_id == user['id']:
+         return jsonify({'status': 'error', 'message': '你不能刪除自己的管理員帳號！'}), 400
+
+    # 執行刪除
+    try:
+        database.delete_user(target_user_id)
+        return jsonify({'status': 'success', 'message': '使用者已刪除'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+@app.route('/admin/user_details/<int:target_user_id>')
+def admin_get_user_details(target_user_id):
+    user = get_current_user()
+    
+    # 權限驗證
+    if not user or not dict(user).get('is_admin', 0):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+
+    # 1. 獲取該玩家所有分數
+    raw_scores = database.get_all_scores_by_user(target_user_id)
+    
+    # 2. 獲取玩家基本資料 (為了顯示在彈窗標題)
+    target_user = database.get_user_by_id(target_user_id)
+    
+    # 3. 資料整理：將分數依照遊戲名稱分類
+    # 格式範例: { 'snake': [100, 80, 50], 'tetris': [2000, 1500] }
+    organized_scores = {}
+    for row in raw_scores:
+        g_name = row['game_name']
+        if g_name not in organized_scores:
+            organized_scores[g_name] = []
+        
+        # 只保留分數與時間
+        organized_scores[g_name].append({
+            'score': row['score'],
+            'date': row['timestamp'].split(' ')[0] # 只取日期部分
+        })
+
+    return jsonify({
+        'status': 'success',
+        'username': target_user['username'],
+        'avatar': target_user['avatar'],
+        'scores': organized_scores
+    })
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, port=5000, use_reloader=True)

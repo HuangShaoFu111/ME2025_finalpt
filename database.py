@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 # 改放到 /tmp 目錄下，避開 Windows/部署環境的檔案鎖定問題
-DB_NAME = '/tmp/arcade.db' 
+DB_NAME = './arcade.db' 
 
 def get_db_connection():
     # 增加 timeout 參數，使程式在遇到鎖定時等待 30 秒 (解決 database is locked)
@@ -206,6 +206,32 @@ def get_all_best_scores_by_user_with_rank(user_id):
                     'rank': rank_row['rank']
                 }
         return results
+    finally:
+        conn.close()
+
+def get_all_users():
+    """ 取得所有使用者資料 (管理員用) """
+    conn = get_db_connection()
+    try:
+        # 撈取除了密碼以外的所有資訊
+        users = conn.execute('SELECT id, username, avatar, is_admin FROM users ORDER BY id DESC').fetchall()
+        return [dict(u) for u in users]
+    finally:
+        conn.close()
+
+def get_all_scores_by_user(user_id):
+    """ 取得特定使用者的所有分數紀錄，用於管理員查看詳細資料 """
+    conn = get_db_connection()
+    try:
+        # 抓取遊戲名稱、分數、時間，並先依照遊戲名稱分組，再依分數高低排序
+        query = '''
+            SELECT game_name, score, timestamp 
+            FROM scores 
+            WHERE user_id = ? 
+            ORDER BY game_name ASC, score DESC
+        '''
+        scores = conn.execute(query, (user_id,)).fetchall()
+        return [dict(s) for s in scores]
     finally:
         conn.close()
 

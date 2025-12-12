@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Command Center</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* 彈出視窗背景 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        /* 視窗本體 */
+        .detail-modal {
+            background: #0f172a;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 50px rgba(6, 182, 212, 0.3);
+            width: 90%; max-width: 800px; max-height: 85vh;
+            border-radius: 16px;
+            padding: 30px;
+            display: flex; flex-direction: column;
+            transform: scale(0.9); transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+        }
+        .modal-overlay.active .detail-modal { transform: scale(1); }
+
+        /* 視窗頭部 */
+        .modal-header {
+            display: flex; align-items: center; gap: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 20px; margin-bottom: 20px;
+        }
+        .modal-avatar {
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 3px solid var(--gold); box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+            object-fit: cover;
+        }
+        .modal-title h2 { margin: 0; color: white; font-size: 1.8rem; }
+        .modal-title p { margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.9rem; }
+        .close-btn {
+            margin-left: auto; background: none; border: none;
+            color: var(--text-muted); font-size: 2rem; cursor: pointer;
+            transition: 0.2s;
+        }
+        .close-btn:hover { color: #ef4444; transform: rotate(90deg); }
+
+        /* 遊戲列表容器 (可捲動) */
+        .modal-body {
+            overflow-y: auto; padding-right: 10px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        /* 單個遊戲區塊 */
+        .game-score-box {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+        }
+        .game-score-header {
+            color: var(--accent); font-weight: bold; font-family: 'Orbitron';
+            margin-bottom: 10px; padding-bottom: 5px;
+            border-bottom: 1px dashed rgba(255,255,255,0.1);
+            display: flex; align-items: center; gap: 8px;
+        }
+        
+        /* 分數列表 */
+        .score-list { list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto; }
+        .score-item {
+            display: flex; justify-content: space-between;
+            font-size: 0.9rem; padding: 4px 8px;
+            border-radius: 4px; margin-bottom: 2px;
+        }
+        .score-item:nth-child(1) { background: rgba(251, 191, 36, 0.2); color: var(--gold); font-weight: bold; }
+        .score-item:nth-child(2) { color: #e2e8f0; }
+        .score-item:nth-child(3) { color: #cbd5e1; }
+        .score-item span.date { font-size: 0.75rem; color: rgba(255,255,255,0.3); }
+
+        /* 捲軸美化 */
+        .modal-body::-webkit-scrollbar, .score-list::-webkit-scrollbar { width: 6px; }
+        .modal-body::-webkit-scrollbar-thumb, .score-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        /* 讓使用者卡片變手型游標 */
+        .user-card { cursor: pointer; }
+        /* 刪除按鈕不要觸發卡片點擊 */
+        .btn-delete { z-index: 10; position: relative; }
+    </style>
+</head>
+<body>
+
+    <div class="user-menu">
+        <div class="user-profile-btn" style="cursor: default; border-color: var(--gold);">
+            <div class="avatar-display" style="border-color: var(--gold);">
+                {% if user.avatar == 'default.png' %}
+                    <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=0f172a&color=fff">
+                {% else %}
+                    <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}">
+                {% endif %}
+            </div>
+            <span class="username-display" style="color: var(--gold);">🛡️ COMMANDER</span>
+        </div>
+        <div style="margin-top: 10px; text-align: right;">
+            <a href="/lobby" class="btn-secondary" style="font-size: 0.8rem; padding: 5px 15px; border-radius: 20px;">
+                <i class="fa-solid fa-arrow-left"></i> Back to Lobby
+            </a>
+        </div>
+    </div>
+
+    <div class="admin-wrapper">
+        <h1 style="color: var(--gold); border-bottom: 2px solid rgba(251, 191, 36, 0.2); padding-bottom: 10px; display: inline-block;">
+            SYSTEM ADMINISTRATION
+        </h1>
+
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-icon" style="color: var(--accent);"><i class="fa-solid fa-users"></i></div>
+                <div class="stat-info">
+                    <h3>Total Users</h3>
+                    <div class="count" id="totalCount">{{ all_users|length }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color: var(--gold);"><i class="fa-solid fa-user-shield"></i></div>
+                <div class="stat-info">
+                    <h3>Admins</h3>
+                    <div class="count" id="adminCount">{{ all_users | selectattr('is_admin') | list | length }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="Search user...">
+            </div>
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="all">All Users</button>
+                <button class="filter-btn" data-filter="admin">Admins</button>
+                <button class="filter-btn" data-filter="player">Players</button>
+            </div>
+        </div>
+
+        <div class="user-grid" id="userGrid">
+            {% for u in all_users %}
+            <div class="user-card {% if u.is_admin %}is-admin{% endif %}" 
+                 data-username="{{ u.username | lower }}" 
+                 data-id="{{ u.id }}"
+                 data-role="{% if u.is_admin %}admin{% else %}player{% endif %}"
+                 onclick="openUserDetail({{ u.id }})">
+                
+                {% if u.avatar == 'default.png' %}
+                    <img src="https://ui-avatars.com/api/?name={{ u.username }}&background=0f172a&color=fff" class="card-avatar">
+                {% else %}
+                    <img src="{{ url_for('static', filename='uploads/' + u.avatar) }}" class="card-avatar">
+                {% endif %}
+
+                <div class="user-info">
+                    <div class="user-name">
+                        {{ u.username }}
+                        {% if u.is_admin %}
+                            <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> ADMIN</span>
+                        {% endif %}
+                    </div>
+                    <div class="user-meta">
+                        <span class="badge badge-id">ID: {{ u.id }}</span>
+                        <span style="font-size: 0.7rem; color: #64748b; margin-left: 5px;">Click to view details</span>
+                    </div>
+                </div>
+
+                {% if u.id != user.id %}
+                    <button class="btn-delete" 
+                            data-userid="{{ u.id }}" 
+                            data-username="{{ u.username }}"
+                            title="Delete User"
+                            onclick="event.stopPropagation(); deleteUser(this.dataset.userid, this.dataset.username);">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                {% else %}
+                    <div style="color: var(--text-muted); font-size: 0.8rem; font-style: italic;">It's You</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div id="noResults" style="display: none; text-align: center; color: var(--text-muted); margin-top: 50px;">
+            <i class="fa-solid fa-ghost" style="font-size: 3rem; margin-bottom: 10px;"></i>
+            <p>No users found.</p>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="detailModal">
+        <div class="detail-modal">
+            <div class="modal-header">
+                <img src="" id="modalAvatar" class="modal-avatar">
+                <div class="modal-title">
+                    <h2 id="modalUsername">User Name</h2>
+                    <p>PLAYER BATTLE RECORD</p>
+                </div>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            
+            <div class="modal-body" id="modalScores">
+                <div style="text-align: center; width: 100%; color: #888;">Loading data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // === 搜尋與篩選邏輯 ===
+            const searchInput = document.getElementById('searchInput');
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            let currentFilter = 'all';
+
+            searchInput.addEventListener('keyup', filterUsers);
+
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.getAttribute('data-filter');
+                    filterUsers();
+                });
+            });
+
+            function filterUsers() {
+                const input = searchInput.value.toLowerCase();
+                const cards = document.querySelectorAll('.user-card');
+                let visibleCount = 0;
+
+                cards.forEach(card => {
+                    const name = card.getAttribute('data-username');
+                    const id = card.getAttribute('data-id');
+                    const role = card.getAttribute('data-role');
+                    
+                    const matchesSearch = name.includes(input) || id.includes(input);
+                    const matchesType = (currentFilter === 'all') || (currentFilter === role);
+
+                    if (matchesSearch && matchesType) {
+                        card.style.display = 'flex';
+                        visibleCount++;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+        });
+
+        // === 刪除使用者邏輯 ===
+        function deleteUser(userId, username) {
+            if (confirm(`⚠️ 警告 \n\n確定要刪除使用者 "${username}" 嗎？\n此動作無法復原。`)) {
+                fetch(`/admin/delete_user/${userId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.reload(); // 簡單重整頁面
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                });
+            }
+        }
+
+        // === 彈出視窗邏輯 ===
+        const modalOverlay = document.getElementById('detailModal');
+        const modalScores = document.getElementById('modalScores');
+        const modalUsername = document.getElementById('modalUsername');
+        const modalAvatar = document.getElementById('modalAvatar');
+
+        function openUserDetail(userId) {
+            modalOverlay.classList.add('active');
+            modalScores.innerHTML = '<div style="text-align: center; width: 100%; margin-top: 50px; color: var(--accent);"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>Retrieving Data...</div>';
+
+            fetch(`/admin/user_details/${userId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // 設定頭像與名稱
+                        modalUsername.innerText = data.username;
+                        if(data.avatar === 'default.png') {
+                            modalAvatar.src = `https://ui-avatars.com/api/?name=${data.username}&background=0f172a&color=fff`;
+                        } else {
+                            modalAvatar.src = `/static/uploads/${data.avatar}`;
+                        }
+
+                        // 渲染分數
+                        renderScores(data.scores);
+                    } else {
+                        modalScores.innerHTML = '<p style="color:red; text-align:center;">Failed to load data.</p>';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    modalScores.innerHTML = '<p style="color:red; text-align:center;">Network Error</p>';
+                });
+        }
+
+        function renderScores(scoresMap) {
+            modalScores.innerHTML = '';
+            
+            // 檢查是否完全沒玩過遊戲
+            if (Object.keys(scoresMap).length === 0) {
+                modalScores.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">
+                        <i class="fa-solid fa-gamepad" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                        <p>No game records found for this player.</p>
+                    </div>`;
+                return;
+            }
+
+            // 遊戲圖示對照表
+            const icons = {
+                'snake': '🐍', 'dino': '🦖', 'whac': '🔴', 
+                'memory': '🃏', 'tetris': '🧩', 'shaft': '🪜'
+            };
+            const names = {
+                'snake': 'Neon Snake', 'dino': 'Dino Run', 'whac': 'Whac-A-Ball', 
+                'memory': 'Memory Flip', 'tetris': 'Neon Tetris', 'shaft': 'NS-Shaft'
+            };
+
+            // 遍歷每個遊戲
+            for (const [gameKey, records] of Object.entries(scoresMap)) {
+                const gameName = names[gameKey] || gameKey.toUpperCase();
+                const icon = icons[gameKey] || '🎮';
+
+                let listHtml = '';
+                records.forEach(rec => {
+                    listHtml += `
+                        <li class="score-item">
+                            <span>${rec.score}</span>
+                            <span class="date">${rec.date}</span>
+                        </li>`;
+                });
+
+                const box = document.createElement('div');
+                box.className = 'game-score-box';
+                box.innerHTML = `
+                    <div class="game-score-header">
+                        <span>${icon}</span> ${gameName}
+                    </div>
+                    <ul class="score-list">
+                        ${listHtml}
+                    </ul>
+                `;
+                modalScores.appendChild(box);
+            }
+        }
+
+        function closeModal() {
+            modalOverlay.classList.remove('active');
+        }
+
+        // 點擊背景關閉
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeModal();
+        });
+        
+        // 按 ESC 關閉
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

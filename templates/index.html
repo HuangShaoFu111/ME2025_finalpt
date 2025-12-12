@@ -135,6 +135,10 @@
                 Hi, {{ user.username }}
             </div>
 
+            {% if user.is_admin %}
+                <a href="/admin" style="color: #facc15;">🛡️ Admin Panel</a>
+            {% endif %}
+
             <a href="/profile">⚙️ Settings</a>
             <a href="/logout" style="color: #ef4444;">🚪 Logout</a>
         </div>
