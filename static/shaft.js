@@ -18,9 +18,9 @@ const startBtnTop = document.getElementById("startBtnTop"); // 上方的按鈕
 // =========================================================
 const PLATFORM_SPACING = 70;          // 平台間距
 const INITIAL_PLATFORM_SPEED = 1.2;   // 平台基礎速度 (調快一點點)
-const PLAYER_HORIZONTAL_SPEED = 5.5;  // 左右移動速度
+const PLAYER_HORIZONTAL_SPEED = 3.5;  // 左右移動速度
 const GRAVITY = 0.6;                  // ✅ 優化：重力加重，減少漂浮感
-const MAX_FALL_SPEED = 10;            // 最大自由落體速度
+const MAX_FALL_SPEED = 5;            // 最大自由落體速度
 const FRICTION = 0.7;                 // ✅ 新增：摩擦力，讓煞車更靈敏
 
 // 遊戲狀態
@@ -68,7 +68,7 @@ function spawnPlatform(y) {
     let hasHealth = false; // ✅ 修正：先定義變數
     
     const rand = Math.random();
-    if (rand < 0.25) type = 1;      // Spikes
+    if (rand < 0.15) type = 1;      // Spikes
     else if (rand < 0.45) type = 2; // Fake
     else if (rand < 0.55) type = 3; // Spring
     
