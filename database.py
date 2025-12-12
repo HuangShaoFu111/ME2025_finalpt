@@ -14,34 +14,41 @@ def init_db():
     """ 初始化資料庫 """
     conn = get_db_connection()
     c = conn.cursor()
-    # 啟用 Write-Ahead Logging 模式，進一步提高並發性能 (推薦)
-    c.execute('PRAGMA journal_mode=WAL;') 
-    
-    # 建立使用者資料表
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            avatar TEXT DEFAULT 'default.png'
-        )
-    ''')
-    
-    # 建立分數資料表 (ON DELETE CASCADE 確保刪除使用者時，分數自動刪除)
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS scores (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            game_name TEXT NOT NULL,
-            score INTEGER NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
-    print("資料庫初始化完成！")
+    try:
+        # 啟用 Write-Ahead Logging 模式，進一步提高並發性能 (推薦)
+        c.execute('PRAGMA journal_mode=WAL;') 
+        
+        # 建立使用者資料表 - ⭐ 新增 equipped_title 欄位
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                avatar TEXT DEFAULT 'default.png',
+                is_admin INTEGER DEFAULT 0,
+                equipped_title TEXT DEFAULT '' 
+            )
+        ''')
+        
+        # 建立分數資料表 (ON DELETE CASCADE 確保刪除使用者時，分數自動刪除)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                game_name TEXT NOT NULL,
+                score INTEGER NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        ''')
+        
+        conn.commit()
+        print("資料庫初始化完成！")
+    except Exception as e:
+        print(f"Error during init_db: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
 
 def create_user(username, password):
     conn = get_db_connection()
@@ -68,10 +75,11 @@ def verify_user(username, password):
         conn.close() # 確保連線釋放
 
 def get_user_by_id(user_id):
-    """ 透過 ID 取得使用者完整資料 (含頭貼) """
+    """ 透過 ID 取得使用者完整資料 (含頭貼) - ⭐ 確保選取 equipped_title """
     conn = get_db_connection()
     try:
-        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        # 確保選取 equipped_title
+        user = conn.execute('SELECT id, username, password, avatar, is_admin, equipped_title FROM users WHERE id = ?', (user_id,)).fetchone()
         return user
     finally:
         conn.close() # 確保連線釋放
@@ -102,16 +110,37 @@ def update_avatar(user_id, filename):
     finally:
         conn.close()
 
+# ⭐ 新增：取得使用者在特定遊戲中的最高分 (成就解鎖用)
+def get_user_max_score(user_id, game_name):
+    conn = get_db_connection()
+    try:
+        # 使用 MAX(score) 取得最高分
+        max_score = conn.execute('SELECT MAX(score) FROM scores WHERE user_id = ? AND game_name = ?', (user_id, game_name)).fetchone()[0]
+        return max_score if max_score is not None else 0
+    finally:
+        conn.close()
+
+# ⭐ 新增：設定使用者裝備的稱號
+def set_user_equipped_title(user_id, title_id):
+    conn = get_db_connection()
+    try:
+        conn.execute('UPDATE users SET equipped_title = ? WHERE id = ?', (title_id, user_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 def delete_user(user_id):
     """ 刪除使用者及其所有分數紀錄 """
     conn = get_db_connection()
     
-    # 雖然這行是用來開啟外鍵檢查的，但在手動刪除模式下並不是必須的，保留也無妨
+    # 啟用外鍵約束支援
     conn.execute("PRAGMA foreign_keys = ON") 
     
     try:
         # Step 1: 先手動刪除該使用者的所有分數紀錄
-        # 這樣就不會觸發 FOREIGN KEY constraint failed
         conn.execute('DELETE FROM scores WHERE user_id = ?', (user_id,))
 
         # Step 2: 分數清空後，再安全地刪除使用者
@@ -173,7 +202,7 @@ def get_user_scores_by_game(user_id, game_name):
 def get_all_best_scores_by_user_with_rank(user_id):
     """ 獲取特定使用者在所有遊戲中的最高分數及全球排名 (Lobby 專用) """
     conn = get_db_connection()
-    # ⭐ 關鍵修正：將新的遊戲加入列表
+    # 包含所有遊戲
     game_names = ['snake', 'dino', 'whac', 'memory', 'tetris', 'shaft']
     results = {}
 
