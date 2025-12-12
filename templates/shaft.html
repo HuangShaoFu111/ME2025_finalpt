@@ -28,9 +28,9 @@
     <div class="game-container">
         <div class="info-bar">
             <div class="score-box">DEPTH: <span id="depth">0</span> m</div>
-                
+            
             <div class="action-buttons">
-                <button id="startBtn" class="btn-primary">START MISSION</button>
+                <button id="startBtnTop" class="btn-primary">START MISSION</button>
             </div>
         
             <div class="score-box" style="color: #4ade80;">HP: <span id="hp">100</span>%</div>
@@ -39,6 +39,14 @@
         <div class="canvas-wrapper">
             <canvas id="shaftCanvas" width="300" height="500"></canvas>
             <div class="spikes-top"></div>
+
+            <div id="startScreen" class="start-screen">
+                <h3 style="color: #4ade80; margin-bottom: 20px;">SYSTEM READY</h3>
+                <button id="startBtn" class="btn-primary" style="padding: 15px 40px; font-size: 1.2rem;">
+                    START DIVE
+                </button>
+                <p style="color: #888; font-size: 0.9rem; margin-top: 15px;">Use ← and → to move.</p>
+            </div>
         </div>
 
         <div style="margin-top: 15px;">

@@ -18,6 +18,8 @@
             justify-content: center;
             gap: 15px;
             margin-bottom: 30px;
+            /* 讓標籤在小螢幕上可以換行 */
+            flex-wrap: wrap; 
         }
         .tab-btn {
             background: rgba(255,255,255,0.05);
@@ -35,7 +37,7 @@
             box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
         }
 
-        /* 排行榜表格美化 */
+        /* 排行榜表格美化 (其餘 CSS 保持不變) */
         .rank-list {
             list-style: none;
             padding: 0;
@@ -73,7 +75,6 @@
         
         .score-val { font-family: 'Orbitron'; font-size: 1.1em; color: var(--accent); text-align: right; }
         .date-val { font-size: 0.8em; color: var(--text-muted); width: 80px; text-align: right; margin-left: 15px; }
-
     </style>
 </head>
 <body>

@@ -2,40 +2,39 @@ const canvas = document.getElementById("shaftCanvas");
 const ctx = canvas.getContext("2d");
 const depthEl = document.getElementById("depth");
 const hpEl = document.getElementById("hp");
-const startBtn = document.getElementById("startBtn");
 
-// Modal
+// Modal & Buttons
 const modal = document.getElementById("gameOverModal");
 const finalScoreEl = document.getElementById("finalScore");
 const uploadStatusEl = document.getElementById("uploadStatus");
+const startScreen = document.getElementById("startScreen");
 
-let gameState = "IDLE"; 
+// ✅ 修正：分別抓取兩個按鈕
+const startBtn = document.getElementById("startBtn");       // 中間的按鈕
+const startBtnTop = document.getElementById("startBtnTop"); // 上方的按鈕
+
+// =========================================================
+//  核心遊戲常數 (物理參數優化版)
+// =========================================================
+const PLATFORM_SPACING = 70;          // 平台間距
+const INITIAL_PLATFORM_SPEED = 1.2;   // 平台基礎速度 (調快一點點)
+const PLAYER_HORIZONTAL_SPEED = 5.5;  // 左右移動速度
+const GRAVITY = 0.6;                  // ✅ 優化：重力加重，減少漂浮感
+const MAX_FALL_SPEED = 10;            // 最大自由落體速度
+const FRICTION = 0.7;                 // ✅ 新增：摩擦力，讓煞車更靈敏
+
+// 遊戲狀態
+let gameState = "READY"; 
 let score = 0;
 let hp = 100;
 let frameCount = 0;
-let animationId = null; 
-let lastTime = 0; 
-
-// ==========================================
-// 🏆 黃金參數配方 (Golden Physics Recipe)
-// ==========================================
-const PHYSICS = {
-    gravity: 0.6,          
-    moveSpeed: 3,        
-    friction: 0.7,         
-    jumpForce: -16,        
-    maxFallSpeed: 2,      
-    platformStartSpeed: 1, 
-    platformAccel: 1500    
-};
+let gameSpeed = INITIAL_PLATFORM_SPEED;
 
 // 玩家設定
 const initialPlayerState = {
     x: 150, y: 100, w: 20, h: 20,
     vx: 0, vy: 0,
-    onGround: false,
-    invincibleUntil: 0, 
-    isHurt: false       
+    onGround: false
 };
 
 let player = { ...initialPlayerState };
@@ -44,90 +43,38 @@ let player = { ...initialPlayerState };
 const platforms = [];
 const platformWidth = 70;
 const platformHeight = 15;
-let platformSpeed = PHYSICS.platformStartSpeed;
 
 // 按鍵監聽
 const keys = { ArrowLeft: false, ArrowRight: false };
 
-// 🚀 [關鍵修改] 鍵盤事件監聽：加入「按任意鍵開始」邏輯
+// --- 事件綁定 ---
 document.addEventListener("keydown", (e) => { 
-    // 1. 如果遊戲不在進行中 (IDLE 或 GAMEOVER)
-    if (gameState !== "PLAYING") {
-        // 排除 F1-F12、Ctrl、Alt 組合鍵，避免誤觸瀏覽器功能
-        if (e.key.startsWith("F") || e.ctrlKey || e.altKey || e.metaKey) return;
-        
-        // 啟動遊戲
+    // 按任意鍵開始 (除了功能鍵)
+    if (gameState === "READY" && !e.key.startsWith("F") && !e.ctrlKey && !e.altKey) {
         startGame();
-        e.preventDefault(); // 防止空白鍵捲動網頁
         return;
     }
-
-    // 2. 遊戲進行中的正常操作
-    // 防止按方向鍵捲動網頁
-    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
-        e.preventDefault();
-    }
-    if(keys.hasOwnProperty(e.code)) keys[e.code] = true; 
+    if(keys.hasOwnProperty(e.code) && gameState === "PLAYING") keys[e.code] = true; 
 });
-
 document.addEventListener("keyup", (e) => { if(keys.hasOwnProperty(e.code)) keys[e.code] = false; });
 
+// ✅ 修正：兩個按鈕都綁定開始事件
 startBtn.addEventListener("click", startGame);
+if(startBtnTop) startBtnTop.addEventListener("click", startGame);
 
-function startGame() {
-    if (gameState === "PLAYING") return;
-
-    if (gameState === "GAMEOVER") {
-        resetGame();
-    }
+// --- 初始化/重置 ---
+function spawnPlatform(y) {
+    let type = 0;
+    let hasHealth = false; // ✅ 修正：先定義變數
     
-    gameState = "PLAYING";
+    const rand = Math.random();
+    if (rand < 0.25) type = 1;      // Spikes
+    else if (rand < 0.45) type = 2; // Fake
+    else if (rand < 0.55) type = 3; // Spring
     
-    startBtn.disabled = true;
-    startBtn.style.opacity = "0.5";
-    startBtn.textContent = "RUNNING...";
-    modal.classList.add("hidden");
-
-    lastTime = performance.now();
-    gameLoop(lastTime);
-}
-
-function resetGame() {
-    score = 0;
-    hp = 100;
-    frameCount = 0;
-    depthEl.innerText = 0;
-    hpEl.innerText = 100;
-    hpEl.style.color = '#4ade80';
-    platformSpeed = PHYSICS.platformStartSpeed; 
-
-    player = { ...initialPlayerState };
-
-    platforms.length = 0;
-    for(let i=0; i<7; i++) {
-        spawnPlatform(100 + i * 85, true); 
-    }
-
-    const startPlatform = platforms[3]; 
-    player.x = startPlatform.x + (startPlatform.w / 2) - (player.w / 2);
-    player.y = startPlatform.y - player.h - 2; 
-    player.vx = 0;
-    player.vy = 0;
-}
-
-function spawnPlatform(y, safe = false) {
-    let type = 0; 
-    let hasHealth = false;
-
-    if (!safe) {
-        const rand = Math.random();
-        if (rand < 0.2) type = 1;      // Spikes
-        else if (rand < 0.35) type = 2; // Fake
-        else if (rand < 0.45) type = 3; // Spring
-        
-        if (type === 0 && Math.random() < 0.05) {
-            hasHealth = true;
-        }
+    // 只有普通平台有機會生成補血 (5%)
+    if (type === 0 && Math.random() < 0.05) {
+        hasHealth = true;
     }
     
     platforms.push({
@@ -136,100 +83,176 @@ function spawnPlatform(y, safe = false) {
         w: platformWidth,
         h: platformHeight,
         type: type,
-        hasHealth: hasHealth,
+        hasHealth: hasHealth, // ✅ 現在這裡不會報錯了
         isSpringActive: false 
     });
 }
 
-function update(deltaTime) {
+function resetState() {
+    platforms.length = 0;
+    const platformCount = Math.ceil(canvas.height / PLATFORM_SPACING) + 2;
+    
+    // 生成初始平台 (強制安全)
+    for(let i = 0; i < platformCount; i++) {
+        let pY = canvas.height - 50 - i * PLATFORM_SPACING;
+        // 手動推入安全平台
+        platforms.push({
+            x: Math.random() * (canvas.width - platformWidth),
+            y: pY,
+            w: platformWidth,
+            h: platformHeight,
+            type: 0, // 安全
+            hasHealth: false,
+            isSpringActive: false
+        });
+    }
+    
+    // ✅ 玩家站在某個平台上
+    if (platforms.length > 3) {
+        const startP = platforms[3];
+        player.x = startP.x + 20;
+        player.y = startP.y - 30;
+    } else {
+        player.x = 150;
+        player.y = 100;
+    }
+    
+    player.vx = 0;
+    player.vy = 0;
+    
+    score = 0;
+    hp = 100;
+    frameCount = 0;
+    gameSpeed = INITIAL_PLATFORM_SPEED; 
+    
+    depthEl.innerText = score;
+    hpEl.innerText = hp;
+    hpEl.style.color = '#4ade80';
+
+    modal.classList.add("hidden");
+    
+    // 更新上方按鈕狀態
+    if(startBtnTop) {
+        startBtnTop.textContent = "MISSION READY";
+        startBtnTop.disabled = false;
+        startBtnTop.style.opacity = "1";
+    }
+}
+
+function startGame() {
+    if (gameState === "PLAYING") return;
+    
+    startScreen.classList.add("hidden"); 
+    gameState = "PLAYING";
+    
+    if(startBtnTop) {
+        startBtnTop.textContent = "RUNNING...";
+        startBtnTop.disabled = true;
+        startBtnTop.style.opacity = "0.5";
+    }
+    
+    requestAnimationFrame(gameLoop); 
+}
+
+// --- 核心更新 ---
+function update() {
     if(gameState !== "PLAYING") return;
 
     frameCount++;
     score = Math.floor(frameCount / 10);
     depthEl.innerText = score;
 
-    // === 1. 玩家水平移動 ===
+    // 難度曲線：稍微平滑一點
+    gameSpeed = INITIAL_PLATFORM_SPEED + (score / 2000); 
+
+    // 1. 玩家水平移動 (加入摩擦力)
     if (keys.ArrowLeft) {
-        player.vx = -PHYSICS.moveSpeed;
+        player.vx = -PLAYER_HORIZONTAL_SPEED;
     } else if (keys.ArrowRight) {
-        player.vx = PHYSICS.moveSpeed;
+        player.vx = PLAYER_HORIZONTAL_SPEED;
     } else {
-        player.vx *= PHYSICS.friction;
-        if (Math.abs(player.vx) < 0.1) player.vx = 0;
+        player.vx *= FRICTION; // 煞車
+        if(Math.abs(player.vx) < 0.1) player.vx = 0;
     }
 
     player.x += player.vx;
-
+    
+    // 邊界檢查
     if (player.x < 0) player.x = 0;
     if (player.x + player.w > canvas.width) player.x = canvas.width - player.w;
 
-    // === 2. 垂直物理 ===
-    player.vy += PHYSICS.gravity; 
-    
-    if (player.vy > PHYSICS.maxFallSpeed) {
-        player.vy = PHYSICS.maxFallSpeed;
-    }
+    // 2. 玩家垂直移動
+    player.vy += GRAVITY;
+    if(player.vy > MAX_FALL_SPEED) player.vy = MAX_FALL_SPEED;
     
     player.y += player.vy;
 
-    // === 3. 平台移動 ===
-    const speedBoost = Math.min(3, score / PHYSICS.platformAccel); 
-    const currentSpeed = platformSpeed + speedBoost;
-    
-    platforms.forEach(p => p.y -= currentSpeed);
+    // 3. 平台移動與生成
+    platforms.forEach(p => p.y -= gameSpeed);
 
-    if (platforms[0].y + platformHeight < 0) {
-        platforms.shift();
-        spawnPlatform(canvas.height);
+    const lastPlatform = platforms[platforms.length - 1];
+    if (lastPlatform && lastPlatform.y <= canvas.height - PLATFORM_SPACING) {
+        spawnPlatform(canvas.height); 
     }
 
-    // === 4. 碰撞檢測 ===
-    player.onGround = false;
+    if (platforms.length > 0 && platforms[0].y + platformHeight < 0) {
+        platforms.shift();
+    }
     
-    const now = performance.now();
-    const isInvincible = now < player.invincibleUntil;
-    player.isHurt = isInvincible; 
+    // 4. 碰撞檢測與修正
+    let wasOnGround = player.onGround;
+    player.onGround = false;
 
     platforms.forEach(p => {
-        if (player.vy > 0 && 
-            player.x + player.w > p.x + 5 && 
+        // 只偵測腳底
+        if (
+            player.vy >= 0 && 
+            player.x + player.w > p.x + 5 &&
             player.x < p.x + p.w - 5 &&
-            player.y + player.h >= p.y &&     
-            player.y + player.h <= p.y + p.h + 10 
+            player.y + player.h >= p.y &&
+            player.y + player.h <= p.y + platformHeight + 5 // 寬容度
         ) {
             if (p.type === 2) return; 
 
             player.y = p.y - player.h;
-            player.vy = -currentSpeed; 
+            player.vy = 0;
             player.onGround = true;
-
+            
+            // 特效處理
             if (p.type === 1) { // Spikes
-                if (!isInvincible) {
-                    takeDamage(15); 
-                    player.vy = -4; 
+                if (!wasOnGround) { 
+                    hp = Math.max(0, hp - 5);
+                    player.vy = -3; // 小彈跳
                 }
+                hpEl.style.color = 'red';
             } 
             else if (p.type === 3) { // Spring
-                player.vy = PHYSICS.jumpForce; 
+                player.vy = -12; // 大彈跳
                 p.isSpringActive = true;
-                setTimeout(() => p.isSpringActive = false, 200); 
+                setTimeout(() => p.isSpringActive = false, 200);
             }
             else { // Normal
-                if (p.hasHealth) {
-                    hp = Math.min(100, hp + 10); 
-                    p.hasHealth = false; 
-                    hpEl.style.color = '#4ade80';
+                if(p.hasHealth) {
+                    hp = Math.min(100, hp + 10);
+                    p.hasHealth = false;
                 }
+                hpEl.style.color = '#4ade80';
             }
         }
     });
 
+    // 平台帶玩家上升
+    if (player.onGround) {
+         player.y -= gameSpeed; 
+    }
+    
+    // 5. 頂部尖刺傷害
     if (player.y < 10) {
-        if (!isInvincible) {
-            takeDamage(20);
-            player.vy = 5; 
+        if (player.y < 5) { 
+            hp = Math.max(0, hp - 5); // 傷害稍微調低一點，避免秒殺
         }
         player.y = 10;
+        player.vy = 0; 
     }
 
     hpEl.innerText = Math.floor(hp);
@@ -237,16 +260,13 @@ function update(deltaTime) {
     if(hp <= 30) hpEl.style.color = '#ef4444';
     else if(hp > 30 && hp < 100) hpEl.style.color = '#facc15';
 
+    // 6. 死亡判定
     if (player.y > canvas.height || hp <= 0) {
         gameOver();
     }
 }
 
-function takeDamage(amount) {
-    hp -= amount;
-    player.invincibleUntil = performance.now() + 1000; 
-}
-
+// --- 繪圖 ---
 function draw() {
     ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -296,47 +316,56 @@ function draw() {
     });
 
     // 畫玩家
-    if (player.isHurt && Math.floor(performance.now() / 100) % 2 === 0) {
-        // 閃爍
-    } else {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "#facc15";
-        ctx.fillStyle = "#facc15";
-        ctx.fillRect(player.x, player.y, player.w, player.h);
-        
-        ctx.fillStyle = "black";
-        ctx.shadowBlur = 0;
-        if (keys.ArrowLeft) {
-            ctx.fillRect(player.x+2, player.y+5, 4, 4);
-        } else {
-            ctx.fillRect(player.x+12, player.y+5, 4, 4);
-        }
-    }
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "#facc15";
+    ctx.fillStyle = "#facc15";
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+    
+    // 眼睛
+    ctx.fillStyle = "black";
+    ctx.shadowBlur = 0;
+    
+    let eyeOffset = 7; // 預設看中間
+    if (player.vx < -0.5) eyeOffset = 2; // 看左
+    if (player.vx > 0.5) eyeOffset = 12; // 看右
+
+    ctx.fillRect(player.x + eyeOffset, player.y + 5, 4, 4);
+    ctx.fillRect(player.x + eyeOffset + 7, player.y + 5, 4, 4);
 }
 
-function gameLoop(timestamp) {
+// --- 遊戲迴圈/結束 ---
+function gameLoop() {
     if(gameState === "PLAYING") {
-        const deltaTime = timestamp - lastTime;
-        lastTime = timestamp;
-        update(deltaTime);
-        draw();
-        animationId = requestAnimationFrame(gameLoop);
-    } else {
-        draw(); 
-        requestAnimationFrame(() => gameLoop(performance.now())); 
+        update();
+    }
+    draw(); 
+    
+    if (gameState === "PLAYING") {
+        requestAnimationFrame(gameLoop);
     }
 }
 
 function gameOver() {
     gameState = "GAMEOVER";
     
+    // 啟用兩個按鈕
     startBtn.disabled = false;
     startBtn.style.opacity = "1";
     startBtn.textContent = "RETRY MISSION";
 
+    if(startBtnTop) {
+        startBtnTop.disabled = false;
+        startBtnTop.style.opacity = "1";
+        startBtnTop.textContent = "RETRY MISSION";
+    }
+
     modal.classList.remove("hidden");
     finalScoreEl.innerText = score;
-
+    
+    // 顯示上傳中
+    uploadStatusEl.innerText = "Uploading score...";
+    uploadStatusEl.style.color = "#888";
+    
     fetch('/api/submit_score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -356,6 +385,7 @@ function gameOver() {
     });
 }
 
-// 啟動初始化
-resetGame();
-gameLoop(performance.now());
+// 初始啟動
+resetState(); 
+// 不自動開始 Loop，等待按鈕觸發
+draw();
