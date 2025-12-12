@@ -64,6 +64,61 @@ def get_current_user():
         return database.get_user_by_id(session['user_id'])
     return None
 
+# ==========================================
+# ⭐ 成就/稱號定義 (TITLES DEFINITION)
+# ==========================================
+TITLES = {
+    'novice_player': {
+        'display_name': '🕹️ 遊戲新手',
+        'description': '完成任一遊戲一次即可獲得',
+        'game': 'any',
+        'required_score': 1,
+        'default': True
+    },
+    'snake_master': {
+        'display_name': '🐍 貪食之主',
+        'description': '貪食蛇分數達到 50',
+        'game': 'snake',
+        'required_score': 50,
+        'default': False
+    },
+    'dino_runner': {
+        'display_name': '🦖 恐龍跑者',
+        'description': '恐龍跑酷分數達到 500',
+        'game': 'dino',
+        'required_score': 500,
+        'default': False
+    },
+    'shaft_expert': {
+        'display_name': '⛏️ 礦坑專家',
+        'description': 'NS-Shaft 深度達到 200m',
+        'game': 'shaft',
+        'required_score': 200,
+        'default': False
+    },
+    'memory_god': {
+        'display_name': '🧠 記憶之神',
+        'description': '記憶配對分數達到 900',
+        'game': 'memory',
+        'required_score': 900, 
+        'default': False
+    },
+    'tetris_legend': {
+        'display_name': '🧱 方塊傳說',
+        'description': '俄羅斯方塊分數達到 5000',
+        'game': 'tetris',
+        'required_score': 5000, 
+        'default': False
+    },
+    'whac_champion': {
+        'display_name': '🔨 打地鼠王',
+        'description': '打地鼠分數達到 500',
+        'game': 'whac',
+        'required_score': 500,
+        'default': False
+    }
+}
+
 # --- 頁面路由 ---
 
 @app.route('/')
@@ -283,12 +338,110 @@ def get_my_best_scores():
     scores_dict = database.get_all_best_scores_by_user_with_rank(user['id'])
     return jsonify(scores_dict)
 
+# ⭐ 替換 /shop 路由為成就中心邏輯
 @app.route('/shop')
 def shop_page():
     user = get_current_user()
     if not user:
         return redirect(url_for('home'))
-    return render_template('shop.html', user=user)
+
+    user_id = user['id']
+    equipped_title = user.get('equipped_title', '') # 確保獲取到 equipped_title
+    
+    # 1. 獲取使用者在所有需檢查遊戲中的最高分
+    max_scores = {}
+    for title_data in TITLES.values():
+        if title_data.get('game') and title_data['game'] != 'any':
+            max_scores[title_data['game']] = database.get_user_max_score(user_id, title_data['game'])
+
+    # 2. 檢查稱號解鎖狀態
+    titles_data = []
+    has_any_score = any(score > 0 for score in max_scores.values())
+
+    for title_id, title_info in TITLES.items():
+        is_unlocked = False
+        
+        if title_info.get('default'):
+            is_unlocked = has_any_score
+        
+        elif title_info['game'] != 'any':
+            game = title_info['game']
+            required = title_info['required_score']
+            current_max = max_scores.get(game, 0)
+            
+            if current_max >= required:
+                is_unlocked = True
+
+        titles_data.append({
+            'id': title_id,
+            'display_name': title_info['display_name'],
+            'description': title_info['description'],
+            'required_score': title_info['required_score'],
+            'game_name': title_info['game'],
+            'unlocked': is_unlocked,
+            'equipped': (title_id == equipped_title)
+        })
+
+    return render_template('shop.html', 
+                           user=user,
+                           titles=titles_data, 
+                           equipped_title_display=TITLES.get(equipped_title, {}).get('display_name', '未裝備'))
+
+
+# ⭐ 新增：API 路由用於裝備稱號
+@app.route('/api/equip_title', methods=['POST'])
+def api_equip_title():
+    if 'user_id' not in session:
+        return jsonify({'status': 'error', 'message': '未登入'}), 401
+    
+    user = get_current_user()
+    user_id = user['id']
+    data = request.get_json()
+    title_id = data.get('title_id')
+
+    # 卸下稱號
+    if not title_id:
+        database.set_user_equipped_title(user_id, '')
+        return jsonify({
+            'status': 'success', 
+            'message': '成功卸下稱號',
+            'new_title': '未裝備'
+        })
+    
+    if title_id not in TITLES:
+        return jsonify({'status': 'error', 'message': '無效的稱號ID'}), 400
+
+    title_info = TITLES[title_id]
+
+    # 1. 檢查是否已解鎖 
+    is_unlocked = False
+    
+    # 獲取所有遊戲的最高分 (用於檢查 'any' 稱號)
+    max_scores = {title_data['game']: database.get_user_max_score(user_id, title_data['game']) 
+                  for title_data in TITLES.values() if title_data['game'] != 'any'}
+    has_any_score = any(score > 0 for score in max_scores.values())
+
+    if title_info.get('default'):
+        is_unlocked = has_any_score
+    
+    elif title_info['game'] != 'any':
+        game = title_info['game']
+        required = title_info['required_score']
+        current_max = max_scores.get(game, 0)
+        if current_max >= required:
+            is_unlocked = True
+
+    if not is_unlocked:
+        return jsonify({'status': 'error', 'message': f'此稱號尚未解鎖 (需要分數: {title_info["required_score"]})'}), 403
+
+    # 2. 裝備稱號
+    database.set_user_equipped_title(user_id, title_id)
+    
+    return jsonify({
+        'status': 'success', 
+        'message': f'成功裝備稱號: {title_info["display_name"]}',
+        'new_title': title_info["display_name"]
+    })
 
 # app.py (修正後的管理員路由)
 

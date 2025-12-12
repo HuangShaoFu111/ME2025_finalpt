@@ -1,11 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Store - Arcade Hub</title>
+    <title>成就中心 - Arcade Hub</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='shop.css') }}">
+    <style>
+        /* 新增狀態顏色變數 */
+        :root {
+            --green: #4ade80;
+            --red: #ef4444;
+        }
+        
+        /* 頂部裝備顯示區 */
+        .equipped-title-display {
+            text-align: center;
+            font-size: 1.1em;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .equipped-title-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: var(--gold);
+            margin: 0;
+            white-space: nowrap;
+        }
+        
+        /* 稱號卡片佈局調整 */
+        .achievement-card {
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 40px !important;
+        }
+        
+        /* 稱號描述 */
+        .card-description {
+            color: var(--text-muted);
+            font-style: italic;
+            text-align: center;
+            margin: 10px 0;
+            font-size: 0.95rem;
+        }
+        
+        /* 狀態文字 */
+        .card-status {
+            font-weight: bold;
+            margin-top: auto;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+    </style>
 </head>
 <body>
 
@@ -23,39 +83,127 @@
     </div>
 
     <div class="shop-container">
-        <h1>💰 Top-up Center</h1>
+        <h1>🏆 成就與稱號中心</h1>
         <p style="color: var(--text-muted); margin-bottom: 30px; font-size: 1.1em;">
-            Purchase points to support Arcade Hub operations!
+            解鎖稱號，讓你的名字閃耀光芒！
         </p>
-        
-        <div class="recharge-grid">
-            
-            <div class="recharge-card">
-                <p class="card-price">NT$ 100</p>
-                <p>Get <span class="coin-icon">✨ 100</span> Points</p>
-                <button class="btn-primary">Support</button>
-            </div>
-            
-            <div class="recharge-card">
-                <p class="card-price">NT$ 300</p>
-                <p>Get <span class="coin-icon">✨ 320</span> Points</p>
-                <p class="card-bonus">+20 Points (Bonus)</p>
-                <button class="btn-primary">Appreciate</button>
-            </div>
-            
-            <div class="recharge-card">
-                <p class="card-price">NT$ 500</p>
-                <p>Get <span class="coin-icon">✨ 550</span> Points</p>
-                <p class="card-bonus">+50 Points (Best Value)</p>
-                <button class="btn-primary">Big Thanks</button>
-            </div>
 
+        <div class="equipped-title-display">
+            目前裝備: 
+            <span id="equippedTitle" class="equipped-title-name">
+                {{ equipped_title_display if equipped_title_display else '未裝備' }}
+            </span>
+            <button class="btn-secondary" onclick="equipTitle('')" 
+                    {% if not equipped_title_display or equipped_title_display == '未裝備' %}disabled{% endif %}>
+                卸下
+            </button>
+        </div>
+
+        <div class="recharge-grid">
+            {% for title in titles %}
+            <div class="recharge-card achievement-card" data-title-id="{{ title.id }}">
+                <p class="card-price">{{ title.display_name }}</p>
+                
+                <p class="card-description">{{ title.description }}</p>
+                
+                <p class="card-status" id="status-{{ title.id }}">
+                    {% if title.equipped %}
+                        <span style="color: var(--gold);">🏅 已裝備</span>
+                    {% elif title.unlocked %}
+                        <span style="color: var(--green);">🔓 已解鎖</span>
+                    {% else %}
+                        <span style="color: var(--red);">
+                            🔒 未解鎖 
+                            {% if title.game_name != 'any' %}
+                                (需 {{ title.game_name }} {{ title.required_score }})
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                </p>
+                
+                <button 
+                    id="btn-{{ title.id }}"
+                    class="btn-primary" 
+                    onclick="equipTitle('{{ title.id }}', '{{ title.display_name }}')"
+                    {% if not title.unlocked or title.equipped %}disabled{% endif %}
+                >
+                    {% if title.equipped %}
+                        已裝備
+                    {% else %}
+                        裝備此稱號
+                    {% endif %}
+                </button>
+            </div>
+            {% endfor %}
         </div>
 
         <a href="/lobby" class="btn-secondary" style="margin-top: 50px; border-radius: 50px; padding: 10px 30px; text-decoration: none; display: inline-block;">
-            ← Back to Lobby
+            ← 返回大廳
         </a>
     </div>
 
+    <script>
+        // 處理裝備/卸下稱號的非同步請求
+        function equipTitle(titleId, displayName) {
+            // 詢問使用者
+            if (!titleId) {
+                if (!confirm(`確定要卸下目前的稱號嗎？`)) return;
+            } else if (!confirm(`確定要裝備稱號「${displayName}」嗎？`)) {
+                return;
+            }
+
+            fetch("{{ url_for('api_equip_title') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title_id: titleId }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // 1. 更新頂部顯示與卸下按鈕狀態
+                    document.getElementById('equippedTitle').innerText = data.new_title;
+                    const unequipBtn = document.querySelector('.equipped-title-display .btn-secondary');
+                    unequipBtn.disabled = (data.new_title === '未裝備');
+
+                    // 2. 更新所有按鈕和狀態標籤
+                    document.querySelectorAll('.achievement-card').forEach(card => {
+                        const id = card.getAttribute('data-title-id');
+                        const statusSpan = document.getElementById(`status-${id}`);
+                        const button = document.getElementById(`btn-${id}`);
+                        
+                        // 檢查卡片是否已解鎖 (簡單的判斷，確保不是未解鎖的🔒)
+                        const isUnlocked = !statusSpan.innerHTML.includes('🔒');
+
+                        if (id === titleId && titleId !== '') {
+                            // 設置新裝備的稱號
+                            statusSpan.innerHTML = '🏅 已裝備';
+                            statusSpan.style.color = 'var(--gold)';
+                            button.innerText = '已裝備';
+                            button.disabled = true;
+                        } else if (isUnlocked) {
+                            // 恢復之前裝備的或只是已解鎖的稱號
+                            statusSpan.innerHTML = '🔓 已解鎖';
+                            statusSpan.style.color = 'var(--green)';
+                            button.innerText = '裝備此稱號';
+                            button.disabled = false;
+                        } else {
+                            // 保持鎖定狀態
+                            button.disabled = true;
+                            button.innerText = '裝備此稱號';
+                        }
+                    });
+
+                    alert(data.message);
+                    
+                } else {
+                    alert('操作失敗: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('發生網路錯誤，請稍後再試。');
+            });
+        }
+    </script>
 </body>
 </html>
