@@ -20,78 +20,54 @@ body {
     margin-bottom: 20px;
     letter-spacing: 4px;
     text-transform: uppercase;
-    font-style: italic; /* 統一風格 */
 }
 
-/* === 遊戲主容器 (Flexbox 置中) === */
+/* === 遊戲主容器 === */
 .game-container {
-    padding: 40px;
-    background: rgba(20, 30, 50, 0.7); /* 調整背景色與其他遊戲一致 */
+    padding: 25px;
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 20px;
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(0, 212, 255, 0.2); /* 調整邊框顏色 */
-    box-shadow: 0 0 50px rgba(0, 212, 255, 0.15);
-    
-    /* ⭐ 關鍵修改：Flexbox 置中佈局 ⭐ */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 15px;
-    
-    /* 確保寬度足夠容納 4x4 卡片 (每張100px + gap) */
-    width: 550px; 
-    max-width: 95vw;
+    min-width: 600px; /* 確保寬度足夠放按鈕 */
 }
 
-/* === 資訊欄 === */
+/* === 資訊欄 HUD === */
 .info-bar {
     display: flex;
-    align-items: center;       /* 垂直置中 */
-    justify-content: center;   /* 水平內容配置由子元素 flex 屬性決定 */
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
     margin-bottom: 25px;
     padding: 0 10px;
-    position: relative;        /* 為絕對定位做準備（如果需要） */
 }
 
-/* 左右側群組設定 */
 .stat-group {
     display: flex;
+    gap: 20px;
+    /* 修正：分數和時間並排 */
     align-items: center;
-    gap: 15px;                 /* 稍微縮小間距 */
-    flex: 1;                   /* 關鍵：左右兩側平分剩餘空間 */
-    min-width: 0;              /* 防止內容過長撐壞佈局 */
 }
 
-/* 讓左側內容靠左 */
-.stat-group.left {
-    justify-content: flex-start;
-}
-
-/* 讓右側內容靠右 (隱藏的佔位符) */
-.stat-group.right {
-    justify-content: flex-end;
-}
-
-/* 數據盒樣式微調 */
 .stat-box {
-    font-size: 1.4rem;         /* 稍微縮小字體以節省空間 */
+    font-size: 1.5rem;
     font-weight: bold;
     color: #ffd84d;
     text-shadow: 0 0 5px rgba(255, 216, 77, 0.5);
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-family: 'Courier New', monospace;
-    white-space: nowrap;       /* 關鍵：防止文字換行或擠壓 */
+    gap: 10px;
 }
 
-/* 按鈕樣式 (確保它不會被壓縮) */
-.btn-primary {
-    /* ...原有樣式... */
-    white-space: nowrap;       /* 防止按鈕文字換行 */
-    flex-shrink: 0;            /* 防止按鈕被壓縮 */
-    margin: 0 10px;            /* 確保按鈕左右有安全距離 */
+/* ⭐ 關鍵修正：動作按鈕群組並排 ⭐ */
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* 按鈕間距 */
 }
 
 /* === 按鈕樣式 === */
@@ -100,22 +76,27 @@ button {
     border: none;
     transition: 0.2s;
     font-family: inherit;
+    /* 確保所有按鈕高度一致 */
+    height: 45px; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* 主開始按鈕 */
 .btn-primary {
     padding: 10px 30px;
-    background: linear-gradient(135deg, #7c3aed, #4f46e5); /* 紫色系 */
+    background: linear-gradient(135deg, #00d4ff, #005bea);
     color: white;
     border-radius: 50px;
     font-weight: 800;
     letter-spacing: 1px;
-    box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
     font-size: 1.1rem;
 }
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 25px rgba(124, 58, 237, 0.6);
+    box-shadow: 0 0 25px rgba(0, 212, 255, 0.6);
 }
 .btn-primary:disabled {
     background: #333;
@@ -125,76 +106,49 @@ button {
     transform: none;
 }
 
-/* === 底部 Lobby 按鈕 (新增) === */
-.btn-lobby {
-    color: #94a3b8;
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 8px 25px;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: 0.3s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-}
-.btn-lobby:hover {
-    background: rgba(255,255,255,0.1);
+/* ⭐ 修正：讓回大廳按鈕變成次要圓形按鈕 ⭐ */
+/* 移除原本的 .btn-icon，改用 .lobby-icon-btn 和 .btn-secondary 組合 */
+.lobby-icon-btn {
+    width: 45px;
+    height: 45px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
     color: white;
-    border-color: white;
+    /* 確保它使用 btn-secondary 的邊框風格 */
+    border: 2px solid rgba(255,255,255,0.3) !important; 
+    /* 移除 clip-path */
+    clip-path: none; 
 }
-
-/* === 卡片網格 === */
-.board {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
-    perspective: 1000px; 
-    min-height: 460px;
-    width: 100%;
-    position: relative;
-    justify-content: center;
-    align-content: center;
-    
-    /* 增加邊框讓它看起來像遊戲畫面 */
-    padding: 10px;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    background: rgba(0,0,0,0.3);
+.btn-secondary {
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.3);
+    color: #ddd;
+    padding: 8px 20px;
+    border-radius: 50px;
 }
+.btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
 
-.placeholder-text {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    color: rgba(255, 255, 255, 0.2);
-    font-size: 1.5rem;
-    font-weight: bold;
-    letter-spacing: 2px;
-    text-align: center;
-    width: 100%;
-}
-
-/* === 操作提示 (新增) === */
-.controls-hint {
-    margin-top: 5px;
-    color: #94a3b8;
-    font-size: 0.9rem;
-    text-align: center;
-    letter-spacing: 1px;
-}
-
-/* === 卡片樣式 (保持不變) === */
+/* === 3D 卡片震動樣式 (保留) === */
+/* ... (卡片相關的 CSS 樣式) ... */
 .card {
-    -webkit-user-select: none;
-    user-select: none;
+    -webkit-user-select: none; 
+    -moz-user-select: none;    
+    -ms-user-select: none;     
+    user-select: none;         
+    -webkit-user-drag: none;   
     width: 100px;
     height: 100px;
     position: relative;
     cursor: pointer;
     background-color: transparent;
 }
+
+.card img, .card i, .card-inner {
+    pointer-events: none; 
+}
+
 .card-inner {
     position: relative;
     width: 100%;
@@ -213,6 +167,7 @@ button {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 3rem;
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     border: 2px solid rgba(255,255,255,0.1);
 }
@@ -220,6 +175,7 @@ button {
     background: linear-gradient(135deg, #1f2937, #111827);
     color: rgba(255, 255, 255, 0.2);
     font-size: 2.5rem;
+    font-weight: bold;
 }
 .card:hover .card-front {
     border-color: #00d4ff;
@@ -230,7 +186,6 @@ button {
     background: white;
     color: #333;
     transform: rotateY(180deg);
-    font-size: 3rem;
 }
 .card.matched .card-back {
     background: #00d4ff;
@@ -238,18 +193,51 @@ button {
     animation: pulse 1s infinite;
 }
 
-/* Modal & User Menu 樣式與 global/common 一致，略 */
-/* 定義 shake, pulse 等動畫 (保持不變) */
-@keyframes shake {
-    0%, 100% { transform: translateX(0) rotateY(180deg); }
-    20%, 60% { transform: translateX(-10px) rotateY(180deg); }
-    40%, 80% { transform: translateX(10px) rotateY(180deg); }
-}
 @keyframes pulse {
     0% { transform: rotateY(180deg) scale(1); }
     50% { transform: rotateY(180deg) scale(1.05); }
     100% { transform: rotateY(180deg) scale(1); }
 }
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0) rotateY(180deg); } 
+    20%, 60% { transform: translateX(-10px) rotateY(180deg); }
+    40%, 80% { transform: translateX(10px) rotateY(180deg); }
+}
+.card.shake .card-inner {
+    animation: shake 0.5s ease-in-out;
+    border-color: #ff3b3b;
+}
+
+/* === Modal === */
+.modal {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+    backdrop-filter: blur(5px);
+}
+.hidden { display: none; }
+.modal-content {
+    background: #1f2937;
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+    animation: popIn 0.3s ease-out;
+    min-width: 300px;
+}
+.modal-content h2 { color: #00d4ff; margin-top: 0; font-size: 2rem; }
+.result-stats { margin: 20px 0; font-size: 1.1rem; color: #ccc; }
+.highlight { color: white; font-weight: bold; }
+.highlight-score { color: #ffd84d; font-weight: bold; font-size: 1.4rem; }
+.status-text { font-size: 0.9rem; color: #888; margin-bottom: 20px; }
+.modal-buttons { display: flex; gap: 15px; justify-content: center; }
+@keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 /* User Menu */
 .user-menu { position: absolute; top: 20px; right: 20px; }
@@ -257,16 +245,29 @@ button {
 .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
 .username-display { margin-left: 10px; font-weight: 600; color: #ccc; }
 .user-profile-btn { display: flex; align-items: center; background: rgba(0,0,0,0.5); padding: 5px 15px 5px 5px; border-radius: 50px; }
-/* Modal Styles */
-.modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 999; backdrop-filter: blur(5px); }
-.hidden { display: none; }
-.modal-content { background: #1f2937; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 50px rgba(0,0,0,0.8); min-width: 300px; animation: popIn 0.3s ease-out; }
-.modal-content h2 { color: #00d4ff; margin-top: 0; font-size: 2rem; }
-.result-stats { margin: 20px 0; font-size: 1.1rem; color: #ccc; }
-.highlight { color: white; font-weight: bold; }
-.highlight-score { color: #ffd84d; font-weight: bold; font-size: 1.4rem; }
-.status-text { font-size: 0.9rem; color: #888; margin-bottom: 20px; }
-.modal-buttons { display: flex; gap: 15px; justify-content: center; }
-.btn-secondary { background: transparent; border: 2px solid rgba(255,255,255,0.3); color: #ddd; padding: 8px 20px; border-radius: 50px; }
-.btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
-@keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* === 卡片網格 === */
+.board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    perspective: 1000px; 
+    min-height: 460px; 
+    width: 100%;
+    position: relative;
+    justify-content: center;
+    align-content: center;
+}
+
+.placeholder-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 1.5rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-align: center;
+    width: 100%;
+}
