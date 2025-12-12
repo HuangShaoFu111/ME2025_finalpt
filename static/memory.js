@@ -19,6 +19,8 @@ let secondCard = null;
 let lockBoard = false;
 let interval;
 let gameActive = false;
+// 1. 在全域變數區新增 combo 變數
+let combo = 0;
 
 // 圖示
 let icons = ["🚀", "🪐", "👽", "☄️", "🌟", "🛰️", "🛸", "🌑"];
@@ -32,6 +34,7 @@ function startGame() {
     });
     timer = 0;
     moves = 0;
+    combo = 0; // 🚀 重置連擊
     firstCard = null;
     secondCard = null;
     lockBoard = false;
@@ -109,9 +112,45 @@ function checkMatch() {
     let isMatch = firstCard.dataset.icon === secondCard.dataset.icon;
 
     if (isMatch) {
+        // 🚀 連擊邏輯：連續答對加分
+        combo++;
+        let bonus = combo * 10; // 連擊越高加越多
+        
+        // 假設你有 score 變數 (原本程式碼是用時間倒扣，這裡可以額外加分)
+        // 這裡示範簡單的加分特效或邏輯，你可以將 bonus 加到 calculatedScore
+        showComboEffect(bonus); 
+        
         disableCards();
     } else {
+        // 🚀 配對失敗：重置連擊並觸發震動
+        combo = 0;
+        triggerShake(); // 呼叫震動函式
         unflipCards();
+    }
+}
+
+function triggerShake() {
+    // 為兩張卡片加上 shake class
+    firstCard.classList.add("shake");
+    secondCard.classList.add("shake");
+
+    // 0.5秒後移除 (配合 CSS 動畫時間)
+    setTimeout(() => {
+        if(firstCard) firstCard.classList.remove("shake");
+        if(secondCard) secondCard.classList.remove("shake");
+    }, 500);
+}
+
+function showComboEffect(bonus) {
+    if (combo > 1) {
+        const infoBar = document.querySelector('.info-bar');
+        const comboText = document.createElement('div');
+        comboText.innerHTML = `🔥 COMBO x${combo}! +${bonus}`;
+        comboText.style.cssText = "position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffeb3b; font-weight: bold; font-size: 2rem; pointer-events: none; text-shadow: 0 0 10px red; z-index: 100; animation: fadeUp 1s forwards;";
+        
+        // 需要在 global.css 或 memory.css 定義 @keyframes fadeUp { to { opacity: 0; transform: translate(-50%, -100%); } }
+        document.body.appendChild(comboText);
+        setTimeout(() => comboText.remove(), 1000);
     }
 }
 

@@ -245,3 +245,15 @@ button {
 .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
 .username-display { margin-left: 10px; font-weight: 600; color: #ccc; }
 .user-profile-btn { display: flex; align-items: center; background: rgba(0,0,0,0.5); padding: 5px 15px 5px 5px; border-radius: 50px; }
+/* 定義震動動畫 */
+@keyframes shake {
+    0%, 100% { transform: translateX(0) rotateY(180deg); } /* 保持翻開狀態 */
+    20%, 60% { transform: translateX(-10px) rotateY(180deg); }
+    40%, 80% { transform: translateX(10px) rotateY(180deg); }
+}
+
+/* 錯誤時的 class */
+.card.shake .card-inner {
+    animation: shake 0.5s ease-in-out;
+    border-color: #ff3b3b; /* 錯誤時邊框變紅 */
+}
