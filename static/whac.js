@@ -1,4 +1,5 @@
-const ball = document.getElementById("ball");
+/* static/whac.js - Gridshot Mode */
+
 const gameArea = document.getElementById("gameArea");
 const scoreEl = document.getElementById("score");
 const timeEl = document.getElementById("time");
@@ -11,31 +12,29 @@ const uploadStatusEl = document.getElementById("uploadStatus");
 const modalRestartBtn = document.getElementById("modalRestartBtn");
 
 let score = 0;
-let timeLeft = 30;
-let moveInterval;
+let timeLeft = 60; // 改為 60 秒標準測試
 let timerInterval;
-let speed = 1000;
 let isPlaying = false;
+const MAX_BALLS = 3; // 場上固定 3 顆球
+const SCORE_PER_HIT = 10; // 每球 10 分
 
-// 點擊事件綁定
+// 事件綁定
 startBtn.addEventListener("click", startGame);
 modalRestartBtn.addEventListener("click", startGame);
 
-ball.addEventListener("mousedown", (e) => { // 改用 mousedown 反應更快
+// 使用事件委派 (Event Delegation) 處理點擊
+// 這樣不用對每顆新球重新綁定事件，效能更好
+gameArea.addEventListener("mousedown", (e) => {
     if (!isPlaying) return;
-    
-    score++;
-    scoreEl.textContent = score;
 
-    // 取得點擊位置或球的位置來產生爆炸
-    // 這裡使用球的中心點，視覺效果較整齊
-    const rect = ball.getBoundingClientRect();
-    const areaRect = gameArea.getBoundingClientRect();
-    const centerX = (rect.left - areaRect.left) + (rect.width / 2) - 30; // 30是爆炸特效半寬
-    const centerY = (rect.top - areaRect.top) + (rect.height / 2) - 30;
-    
-    createExplosion(centerX, centerY);
-    moveBall();
+    const target = e.target.closest('.target-ball');
+    if (target) {
+        handleHit(target);
+    } else {
+        // 點空了 (Miss) - 可以選擇扣分或播放音效，這裡暫不扣分
+        // score = Math.max(0, score - 5);
+        // scoreEl.textContent = score;
+    }
 });
 
 function startGame() {
@@ -44,60 +43,107 @@ function startGame() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ game_name: 'whac' })
     });
+
     // 重置變數
     score = 0;
-    timeLeft = 30;
-    speed = 1000;
+    timeLeft = 60; // 60秒
     isPlaying = true;
 
-    // 更新 UI
+    // UI 更新
     scoreEl.textContent = score;
     timeEl.textContent = timeLeft;
-    modal.classList.add("hidden"); // 隱藏結算視窗
-    startBtn.disabled = true; // 遊戲中停用開始按鈕
-    startBtn.textContent = "IN MISSION...";
+    modal.classList.add("hidden");
+    startBtn.disabled = true;
+    startBtn.textContent = "AIM TRAINER...";
     startBtn.style.opacity = "0.5";
 
-    ball.style.display = "block";
-    moveBall();
+    // 清空場地並生成初始球
+    gameArea.innerHTML = '';
+    for (let i = 0; i < MAX_BALLS; i++) {
+        spawnBall();
+    }
 
-    // 清除舊的計時器
+    // 啟動計時器
     clearInterval(timerInterval);
-    clearInterval(moveInterval);
-
-    // 啟動新的計時器
     timerInterval = setInterval(updateTimer, 1000);
-    moveInterval = setInterval(moveBall, speed);
 }
 
-function moveBall() {
+function handleHit(ballElement) {
+    // 1. 加分
+    score += SCORE_PER_HIT;
+    scoreEl.textContent = score;
+
+    // 2. 特效 (取得球的中心點)
+    const rect = ballElement.getBoundingClientRect();
+    const areaRect = gameArea.getBoundingClientRect();
+    const x = (rect.left - areaRect.left) + (rect.width / 2) - 30;
+    const y = (rect.top - areaRect.top) + (rect.height / 2) - 30;
+    createExplosion(x, y);
+
+    // 3. 移除被點擊的球
+    ballElement.remove();
+
+    // 4. 立刻補一顆新球
+    spawnBall();
+}
+
+function spawnBall() {
     if (!isPlaying) return;
 
-    // 隨機大小：40px ~ 80px
-    const size = Math.floor(40 + Math.random() * 40);
+    const size = 70; // 固定大小，Gridshot 通常球大小一致比較公平
+    const ball = document.createElement("div");
+    ball.classList.add("target-ball");
     ball.style.width = size + "px";
     ball.style.height = size + "px";
+    ball.style.display = "block"; // 確保顯示
 
+    // 計算隨機位置 (防止超出邊界)
     const maxX = gameArea.clientWidth - size;
     const maxY = gameArea.clientHeight - size;
 
-    const x = Math.random() * maxX;
-    const y = Math.random() * maxY;
+    // 簡單的防止重疊邏輯 (嘗試 10 次找到空位)
+    let x, y, overlap;
+    let attempts = 0;
+    do {
+        x = Math.random() * maxX;
+        y = Math.random() * maxY;
+        overlap = false;
+
+        // 檢查是否與現有的球重疊
+        const existingBalls = document.querySelectorAll('.target-ball');
+        for (let other of existingBalls) {
+            const r = other.getBoundingClientRect();
+            const otherX = other.offsetLeft;
+            const otherY = other.offsetTop;
+            
+            // 計算距離
+            const dist = Math.sqrt(Math.pow(x - otherX, 2) + Math.pow(y - otherY, 2));
+            if (dist < size + 10) { // 保持至少 10px 間距
+                overlap = true;
+                break;
+            }
+        }
+        attempts++;
+    } while (overlap && attempts < 10);
 
     ball.style.left = x + "px";
     ball.style.top = y + "px";
+
+    // 加入裝飾 (準心線)
+    ball.innerHTML = '<div class="inner-circle"></div><div class="crosshair"></div>';
+    
+    gameArea.appendChild(ball);
+    
+    // 出現動畫
+    ball.animate([
+        { transform: 'scale(0)' },
+        { transform: 'scale(1)' }
+    ], { duration: 150, easing: 'ease-out' });
 }
 
 function updateTimer() {
     timeLeft--;
     timeEl.textContent = timeLeft;
-
-    // 難度遞增機制
-    if (timeLeft % 5 === 0 && timeLeft > 0) {
-        speed = Math.max(300, speed - 150); // 最快 300ms 跳一次
-        clearInterval(moveInterval);
-        moveInterval = setInterval(moveBall, speed);
-    }
 
     if (timeLeft <= 0) {
         endGame();
@@ -110,29 +156,25 @@ function createExplosion(x, y) {
     boom.style.left = x + "px";
     boom.style.top = y + "px";
     gameArea.appendChild(boom);
-
-    // 動畫結束後移除元素
     setTimeout(() => boom.remove(), 450);
 }
 
 function endGame() {
     isPlaying = false;
     clearInterval(timerInterval);
-    clearInterval(moveInterval);
-    ball.style.display = "none";
     
-    // 恢復開始按鈕
+    // 清空場上的球
+    gameArea.innerHTML = '';
+
     startBtn.disabled = false;
-    startBtn.textContent = "START MISSION";
+    startBtn.textContent = "START TRAINING";
     startBtn.style.opacity = "1";
 
-    // 顯示結算視窗
     finalScoreEl.textContent = score;
     uploadStatusEl.textContent = "Uploading score...";
     uploadStatusEl.style.color = "#888";
     modal.classList.remove("hidden");
 
-    // 上傳分數
     fetch('/api/submit_score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,10 +186,10 @@ function endGame() {
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
-            uploadStatusEl.textContent = "✅ Mission data archived.";
+            uploadStatusEl.textContent = "✅ Data Archived";
             uploadStatusEl.style.color = "#4ade80";
         } else {
-            uploadStatusEl.textContent = "❌ Archive failed (Offline?)";
+            uploadStatusEl.textContent = "❌ Archive Failed";
             uploadStatusEl.style.color = "#ef4444";
         }
     })
