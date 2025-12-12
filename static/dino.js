@@ -1,10 +1,11 @@
+/* static/dino.js - Final Polish Version */
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// DOM 元素
 const scoreEl = document.getElementById("score");
 const startBtn = document.getElementById("startBtn");
-
-// Modal Elements
 const modal = document.getElementById("gameOverModal");
 const finalScoreEl = document.getElementById("finalScore");
 const bestScoreEl = document.getElementById("bestScore");
@@ -12,387 +13,417 @@ const modalRestartBtn = document.getElementById("modalRestartBtn");
 const uploadStatusEl = document.getElementById("uploadStatus");
 
 let bestScore = localStorage.getItem("bestDinoScore") || 0;
+if(bestScoreEl) bestScoreEl.textContent = bestScore;
 
-/* ================================
-   Game Variables
-================================ */
-// 玩家 (CYBER CUBE)
-// isDucking: 是否正在蹲下
-let dino = { 
-    x: 50, 
-    y: 220, 
-    w: 30, 
-    h: 30, 
-    vy: 0, 
-    jumping: false, 
-    isDucking: false, 
-    trail: [] 
+// === ⚙️ 物理參數調整 ===
+const GAME_SPEED_START = 600; 
+const GAME_SPEED_MAX = 1500;
+const GRAVITY = 2500;
+const JUMP_FORCE = -800;
+const DUCK_GRAVITY_BONUS = 3500;
+
+// 地面與碰撞參數
+const GROUND_Y = 250;
+const DINO_STAND_H = 30;
+const DINO_DUCK_H = 15;
+const AIR_OBS_Y = GROUND_Y - 50; 
+
+// === 遊戲變數 ===
+let lastTime = 0;
+let gameTime = 0;
+let score = 0;
+let gameSpeed = GAME_SPEED_START;
+let isRunning = false;
+let isDying = false; // [新增] 控制死亡動畫狀態
+let animationId = null;
+
+let dino = {
+    x: 50,
+    y: GROUND_Y - DINO_STAND_H,
+    w: DINO_STAND_H,
+    h: DINO_STAND_H,
+    vy: 0,
+    isGrounded: true,
+    isDucking: false,
+    trail: []
 };
 
-let obstacles = []; // 改名為 obstacles 以包含地面和空中障礙
-let particles = []; // 背景粒子
-let gridOffset = 0; // 地板網格移動量
+let obstacles = [];
+let particles = [];
+let stars = [];
+let groundOffset = 0;
 
-let score = 0;
-let gameSpeed = 7; 
-let initialSpeed = 7;
-let gravity = 1.2;
+// === 1. 初始化 ===
 
-let obstacleTimer = 0;
-let obstacleInterval = 70;
+function init() {
+    // 預先生成背景星星
+    for(let i=0; i<30; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (GROUND_Y - 50),
+            size: Math.random() * 2,
+            speed: Math.random() * 0.5 + 0.1
+        });
+    }
+    dino.y = GROUND_Y - dino.h;
+    draw(0); 
+}
 
-let gameLoop = null;
-let gameRunning = false;
-
-/* ================================
-   Control & Init
-================================ */
 startBtn.addEventListener("click", startGame);
-modalRestartBtn.addEventListener("click", startGame);
+if(modalRestartBtn) modalRestartBtn.addEventListener("click", startGame);
 
-// 鍵盤按下事件
+// === 🎮 操控邏輯 (Input Handling) ===
+const keys = {};
+
 document.addEventListener("keydown", (e) => {
-    if (!gameRunning) return;
+    // 防止滾動
+    if(["Space","ArrowUp","ArrowDown"].includes(e.code)) e.preventDefault();
+    keys[e.code] = true;
 
-    // 跳躍 (空白鍵 或 上箭頭)
-    if ((e.code === "Space" || e.code === "ArrowUp")) {
-        e.preventDefault();
-        if (!dino.jumping && !dino.isDucking) { // 蹲下時不能跳
-            dino.vy = -18; 
-            dino.jumping = true;
-        }
+    // [新增] 任意鍵開始遊戲
+    // 條件：遊戲沒在跑、沒在播死亡動畫、沒顯示結算視窗
+    if (!isRunning && !isDying && modal.classList.contains("hidden")) {
+        startGame();
+        return;
     }
 
-    // 蹲下 (下箭頭)
-    if (e.code === "ArrowDown") {
-        e.preventDefault();
-        if (!dino.isDucking) {
-            dino.isDucking = true;
-            // 如果在空中按蹲下，給一個快速下墜的力道 (急降)
-            if (dino.jumping) {
-                dino.vy += 10;
-            }
-        }
+    // 在 Game Over 畫面按 Space/Up 重開
+    if((e.code === "Space" || e.code === "ArrowUp") && !modal.classList.contains("hidden")) {
+        startGame();
     }
 });
 
-// 鍵盤放開事件 (解除蹲下)
 document.addEventListener("keyup", (e) => {
-    if (e.code === "ArrowDown") {
-        dino.isDucking = false;
+    keys[e.code] = false;
+
+    // 小跳躍機制
+    if (e.code === "Space" || e.code === "ArrowUp") {
+        if (dino.vy < 0) { 
+            dino.vy *= 0.5; 
+        }
     }
 });
+
+// === 2. 遊戲迴圈 ===
 
 function startGame() {
-    if (gameRunning) return;
+    if (isRunning || isDying) return;
+
     fetch('/api/start_game', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ game_name: 'dino' })
-    });
-    resetGame();
-    gameRunning = true;
-    startBtn.disabled = true;
-    startBtn.style.opacity = "0.5";
-    startBtn.textContent = "RUNNING...";
+    }).catch(console.error);
 
-    gameLoop = setInterval(update, 20);
-}
-
-function resetGame() {
+    // 重置狀態
+    score = 0;
+    gameSpeed = GAME_SPEED_START;
     obstacles = [];
     particles = [];
-    dino = { 
-        x: 50, 
-        y: 220, 
-        w: 30, 
-        h: 30, 
-        vy: 0, 
-        jumping: false, 
-        isDucking: false, 
-        trail: [] 
-    };
     
-    score = 0;
-    scoreEl.textContent = score;
-    gameSpeed = initialSpeed; // 重置速度
-    obstacleTimer = 0;
-    gridOffset = 0;
+    dino.y = GROUND_Y - DINO_STAND_H;
+    dino.vy = 0;
+    dino.isGrounded = true;
+    dino.trail = [];
+    
+    isRunning = true;
+    isDying = false; // 重置死亡狀態
+    lastTime = performance.now();
 
+    // UI
+    scoreEl.textContent = "0";
     modal.classList.add("hidden");
+    startBtn.disabled = true;
+    startBtn.style.opacity = "0.5";
+    startBtn.textContent = "SYSTEM LINKED";
+
+    requestAnimationFrame(loop);
+}
+
+function loop(timestamp) {
+    // 只要是 Running 或 Dying 都要繼續跑迴圈，為了播放粒子動畫
+    if (!isRunning && !isDying) return;
     
-    // 初始化背景粒子
-    for(let i=0; i<20; i++) {
-        particles.push(generateParticle());
-    }
+    const dt = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    if (dt > 0.1) { requestAnimationFrame(loop); return; }
+
+    update(dt);
+    draw(dt);
+    animationId = requestAnimationFrame(loop);
 }
 
-/* ================================
-   Main Update Loop
-================================ */
-function update() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+// === 3. 邏輯更新 ===
 
-    // 1. 繪製背景
-    updateParticles();
-    drawGround();
-
-    // 2. 玩家狀態處理 (蹲下 vs 站立)
-    handleDinoState();
-
-    // 3. 物理運算
-    dino.vy += gravity;
-    dino.y += dino.vy;
-
-    // 地板碰撞 (地板 y=250)
-    // 根據是否蹲下，地板判定點會些微不同，但這裡統一用腳底判定
-    let groundLevel = 250 - dino.h; // 地面 Y 座標 - 玩家高度
-
-    if (dino.y > groundLevel) {
-        dino.y = groundLevel;
-        dino.jumping = false;
-        dino.vy = 0; // 落地歸零
+function update(dt) {
+    // [修改] 如果是死亡狀態，只更新粒子，不更新遊戲邏輯
+    if (isDying) {
+        updateParticles(dt);
+        return; 
     }
 
-    // 4. 繪製玩家
-    drawDino();
+    gameTime += dt;
+    if (gameSpeed < GAME_SPEED_MAX) gameSpeed += 5 * dt;
+    score += gameSpeed * dt * 0.05;
+    scoreEl.textContent = Math.floor(score);
 
-    // 5. 障礙物管理
-    manageObstacles();
-
-    // 6. 難度調整：分數越高，速度越快
-    // 每 20 分 加速 0.5
-    let targetSpeed = initialSpeed + Math.floor(score / 10) * 0.5;
-    if (gameSpeed < targetSpeed) {
-        gameSpeed += 0.01; // 平滑加速
-    }
-}
-
-/* ================================
-   Logic Functions
-================================ */
-
-function handleDinoState() {
-    if (dino.isDucking) {
-        // 蹲下模式：變矮、變寬
-        dino.w = 40;
-        dino.h = 15;
+    // --- 玩家物理 ---
+    if (keys["ArrowDown"]) {
+        dino.isDucking = true;
+        dino.h = DINO_DUCK_H;
+        dino.w = 40; 
+        if (!dino.isGrounded) dino.vy += DUCK_GRAVITY_BONUS * dt;
     } else {
-        // 站立模式
-        dino.w = 30;
-        dino.h = 30;
+        dino.isDucking = false;
+        dino.h = DINO_STAND_H;
+        dino.w = DINO_STAND_H;
     }
-}
 
-function drawDino() {
-    // 紀錄殘影
-    dino.trail.push({ x: dino.x, y: dino.y, w: dino.w, h: dino.h });
-    if (dino.trail.length > 5) dino.trail.shift();
+    const currentGroundY = GROUND_Y - dino.h;
 
-    // 繪製殘影
-    dino.trail.forEach((pos, index) => {
-        let opacity = index / 5;
-        ctx.fillStyle = `rgba(0, 255, 255, ${opacity * 0.4})`;
-        ctx.fillRect(pos.x - (5-index)*2, pos.y, pos.w, pos.h);
-    });
-
-    // 繪製本體
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = "#00ffff";
-    ctx.fillStyle = "#00ffff";
-    ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+    if ((keys["Space"] || keys["ArrowUp"]) && dino.isGrounded) {
+        dino.vy = JUMP_FORCE;
+        dino.isGrounded = false;
+        createParticles(dino.x + dino.w/2, dino.y + dino.h, 5, "#00ffff");
+    }
     
-    // 畫眼睛 (讓他有點方向感)
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#000";
-    // 根據是否蹲下調整眼睛位置
-    let eyeY = dino.isDucking ? dino.y + 4 : dino.y + 6;
-    ctx.fillRect(dino.x + dino.w - 8, eyeY, 6, 6);
+    dino.vy += GRAVITY * dt;
+    dino.y += dino.vy * dt;
+
+    if (dino.y >= currentGroundY) {
+        dino.y = currentGroundY;
+        dino.vy = 0;
+        dino.isGrounded = true;
+    }
+
+    // 殘影
+    if (gameTime % 0.08 < dt) {
+        dino.trail.push({ x: dino.x, y: dino.y, w: dino.w, h: dino.h, alpha: 0.6 });
+        if (dino.trail.length > 5) dino.trail.shift();
+    }
+    dino.trail.forEach(t => t.alpha -= 3 * dt);
+
+    updateObstacles(dt);
+    updateBackground(dt);
 }
 
-function manageObstacles() {
-    // 移動 & 繪製
-    obstacles.forEach((o, i) => {
-        o.x -= gameSpeed;
+function updateObstacles(dt) {
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        let obs = obstacles[i];
+        obs.x -= gameSpeed * dt;
 
-        // 根據類型繪製不同障礙物
-        if (o.type === 'ground') {
-            // === 地面尖刺 (紅色三角形) ===
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = "#ff0055";
-            ctx.fillStyle = "#ff0055";
-            ctx.beginPath();
-            ctx.moveTo(o.x + o.w / 2, o.y); 
-            ctx.lineTo(o.x + o.w, o.y + o.h);
-            ctx.lineTo(o.x, o.y + o.h);
-            ctx.closePath();
-            ctx.fill();
-        } else {
-            // === 空中無人機 (黃色長條) ===
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = "#ffcc00";
-            ctx.fillStyle = "#ffcc00";
-            // 畫出帶有科技感的無人機
-            ctx.fillRect(o.x, o.y, o.w, o.h);
-            // 裝飾線
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(o.x + 5, o.y + 5, o.w - 10, 2);
-        }
-
-        // === 碰撞檢測 ===
-        // 使用簡單的矩形碰撞 (Axis-Aligned Bounding Box)
+        // 碰撞判定 (精準版)
+        const padX = 8; 
+        const padY = 2;
+        
         if (
-            dino.x < o.x + o.w - 5 &&    // 玩家右邊 > 障礙左邊
-            dino.x + dino.w > o.x + 5 && // 玩家左邊 < 障礙右邊
-            dino.y < o.y + o.h - 5 &&    // 玩家腳底 > 障礙頂部
-            dino.y + dino.h > o.y + 5    // 玩家頭頂 < 障礙底部
+            dino.x + padX < obs.x + obs.w - padX &&
+            dino.x + dino.w - padX > obs.x + padX &&
+            dino.y + padY < obs.y + obs.h - padY &&
+            dino.y + dino.h - padY > obs.y + padY
         ) {
-            gameOver();
+            triggerDeath(); // [修改] 觸發死亡流程
         }
 
-        // 移除出界物體
-        if (o.x + o.w < -50) {
-            obstacles.splice(i, 1);
-            score++;
-            scoreEl.textContent = score;
-        }
-    });
+        if (obs.x + obs.w < -100) obstacles.splice(i, 1);
+    }
 
-    ctx.shadowBlur = 0; // 重置陰影
-
-    // 生成新障礙物
-    obstacleTimer++;
-    if (obstacleTimer > obstacleInterval) {
-        obstacles.push(generateObstacle());
-        obstacleTimer = 0;
-        // 隨機間隔，速度越快間隔越短 (增加難度)
-        let minInterval = Math.max(30, 70 - Math.floor(gameSpeed * 2));
-        obstacleInterval = Math.floor(Math.random() * 40) + minInterval; 
+    // 生成管理
+    let lastObsX = obstacles.length > 0 ? obstacles[obstacles.length - 1].x : 0;
+    let minGap = 280 + (gameSpeed * 0.25);
+    
+    if (obstacles.length === 0 || (canvas.width - lastObsX > minGap)) {
+        if (Math.random() < 0.08) spawnObstacle();
     }
 }
 
-function generateObstacle() {
-    // 30% 機率生成空中障礙 (需要蹲下)，70% 地面障礙 (需要跳躍)
-    let isAir = Math.random() > 0.65;
-
-    if (isAir) {
-        // === 空中障礙 (無人機) ===
-        // 高度設定在地面以上，蹲下可過，站立會撞
-        // 地面 Y=250. 蹲下頭頂 Y = 250 - 15 = 235. 站立頭頂 Y = 250 - 30 = 220.
-        // 障礙物底部必須高於 235 (讓蹲下過)，且低於 250 (讓站立撞到)
-        // 設定 Y = 190, H = 35. 底部 = 225. 
-        // 站立(頭220~腳250) vs 障礙(頂190~底225) -> 重疊 (220~225) -> 撞擊
-        // 蹲下(頭235~腳250) vs 障礙(頂190~底225) -> 無重疊 (235 > 225) -> 安全
-        return {
-            type: 'air',
-            x: canvas.width,
-            y: 190, 
-            w: 40,
-            h: 35 
-        };
-    } else {
-        // === 地面障礙 (尖刺) ===
-        // 隨機生成 1~2 個連在一起
-        let width = Math.random() > 0.5 ? 25 : 50; 
-        return {
+function spawnObstacle() {
+    const type = Math.random();
+    if (type < 0.6) {
+        const count = Math.floor(Math.random() * 2) + 1; 
+        obstacles.push({
             type: 'ground',
             x: canvas.width,
-            y: 210, // 250 - 40
-            w: width,
-            h: 40
-        };
+            y: GROUND_Y - 40,
+            w: 25 * count,
+            h: 40,
+            color: '#ff0055'
+        });
+    } else {
+        obstacles.push({
+            type: 'air',
+            x: canvas.width,
+            y: AIR_OBS_Y, 
+            w: 40,
+            h: 30,
+            color: '#ffcc00'
+        });
     }
 }
 
-function drawGround() {
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "rgba(0, 255, 255, 0.3)";
-    ctx.lineWidth = 2;
+function updateBackground(dt) {
+    stars.forEach(s => {
+        s.x -= s.speed * (gameSpeed * 0.1) * dt; 
+        if (s.x < 0) s.x = canvas.width;
+    });
 
-    // 地平線
-    ctx.beginPath();
-    ctx.moveTo(0, 250);
-    ctx.lineTo(canvas.width, 250);
-    ctx.stroke();
+    groundOffset -= gameSpeed * dt;
+    if (groundOffset <= -40) groundOffset = 0;
+    
+    updateParticles(dt);
+}
 
-    // 移動的垂直網格線
-    gridOffset -= gameSpeed;
-    if (gridOffset <= -40) gridOffset = 0;
+function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
 
-    for (let x = gridOffset; x < canvas.width; x += 40) {
-        if (x > -40) { 
+function createParticles(x, y, count, color) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 200,
+            vy: (Math.random() - 0.5) * 200,
+            life: 0.5 + Math.random() * 0.5, // 粒子壽命稍微隨機
+            color: color,
+            size: Math.random() * 3 + 1
+        });
+    }
+}
+
+// === 4. 繪製 ===
+
+function draw(dt) {
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    stars.forEach(s => {
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+        ctx.fill();
+    });
+
+    drawRetroGrid();
+
+    // [修改] 如果不是死亡狀態，才畫玩家殘影和本體
+    if (!isDying) {
+        dino.trail.forEach(t => {
+            ctx.fillStyle = `rgba(0, 255, 255, ${t.alpha * 0.3})`;
+            ctx.fillRect(t.x, t.y, t.w, t.h);
+        });
+
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "#00ffff";
+        ctx.fillStyle = "#00ffff";
+        ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+        
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#000";
+        let eyeY = dino.isDucking ? dino.y + 4 : dino.y + 6;
+        ctx.fillRect(dino.x + dino.w - 8, eyeY, 6, 6);
+    }
+
+    obstacles.forEach(obs => {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = obs.color;
+        ctx.fillStyle = obs.color;
+        if (obs.type === 'ground') {
             ctx.beginPath();
-            ctx.moveTo(x, 250);
-            ctx.lineTo(x - 20, canvas.height); 
-            ctx.stroke();
+            ctx.moveTo(obs.x, obs.y + obs.h);
+            ctx.lineTo(obs.x + obs.w/2, obs.y);
+            ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+            ctx.fill();
+        } else {
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(obs.x + 10, obs.y + 10, obs.w - 20, obs.h - 20);
         }
-    }
-}
+    });
 
-function updateParticles() {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
     particles.forEach(p => {
-        p.x -= p.speed;
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life / 0.5;
         ctx.fillRect(p.x, p.y, p.size, p.size);
-
-        if (p.x < 0) {
-            p.x = canvas.width;
-            p.y = Math.random() * 200;
-        }
+        ctx.globalAlpha = 1.0;
     });
 }
 
-function generateParticle() {
-    return {
-        x: Math.random() * canvas.width,
-        y: Math.random() * 200,
-        size: Math.random() * 2 + 1,
-        speed: Math.random() * 2 + 0.5
-    };
+function drawRetroGrid() {
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "rgba(180, 0, 255, 0.5)";
+    ctx.strokeStyle = "rgba(180, 0, 255, 0.4)";
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(0, GROUND_Y);
+    ctx.lineTo(canvas.width, GROUND_Y);
+    ctx.stroke();
+
+    for (let x = groundOffset; x < canvas.width; x += 40) {
+        if (x < -20) continue;
+        let gradient = ctx.createLinearGradient(0, GROUND_Y, 0, canvas.height);
+        gradient.addColorStop(0, "rgba(180, 0, 255, 0.4)");
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.strokeStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND_Y);
+        ctx.lineTo(x - (x - canvas.width/2) * 0.3, canvas.height); 
+        ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
 }
 
-/* ================================
-   Game Over Logic
-================================ */
-function gameOver() {
-    clearInterval(gameLoop);
-    gameRunning = false;
+// === 5. 死亡與結算 ===
+
+// [新增] 觸發死亡瞬間，但不馬上結算
+function triggerDeath() {
+    isRunning = false;
+    isDying = true;
+    
+    // 爆炸特效
+    createParticles(dino.x, dino.y, 40, "#ff0055");
+    
+    // 1秒後顯示結算畫面
+    setTimeout(showGameOverModal, 1000);
+}
+
+function showGameOverModal() {
+    // 停止迴圈 (這時候才真正停止渲染)
+    isDying = false;
+    cancelAnimationFrame(animationId);
+    
     startBtn.disabled = false;
     startBtn.style.opacity = "1";
     startBtn.textContent = "SYSTEM REBOOT";
 
-    if (score > bestScore) {
-        bestScore = score;
+    const finalScore = Math.floor(score);
+    finalScoreEl.textContent = finalScore;
+    
+    if (finalScore > bestScore) {
+        bestScore = finalScore;
         localStorage.setItem("bestDinoScore", bestScore);
+        if(bestScoreEl) bestScoreEl.textContent = bestScore;
     }
 
-    finalScoreEl.textContent = score;
-    bestScoreEl.textContent = bestScore;
-    uploadStatusEl.textContent = "Uploading data...";
-    uploadStatusEl.style.color = "#888";
-
     modal.classList.remove("hidden");
+    uploadStatusEl.textContent = "Uploading data...";
 
     fetch('/api/submit_score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            game_name: 'dino', 
-            score: score
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === 'success') {
-            uploadStatusEl.textContent = "✅ Data synced to server.";
-            uploadStatusEl.style.color = "#4ade80";
-        } else {
-            uploadStatusEl.textContent = "❌ Sync failed.";
-            uploadStatusEl.style.color = "#ef4444";
-        }
-    })
-    .catch(err => {
-        console.error(err);
-        uploadStatusEl.textContent = "⚠️ Connection Error";
-    });
+        body: JSON.stringify({ game_name: 'dino', score: finalScore })
+    }).then(res => res.json())
+      .then(data => {
+          uploadStatusEl.textContent = data.status === 'success' ? "✅ Data Archived" : "❌ Archive Failed";
+          uploadStatusEl.style.color = data.status === 'success' ? "#4ade80" : "#ef4444";
+      });
 }
+
+init();
