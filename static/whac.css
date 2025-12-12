@@ -69,12 +69,21 @@ body {
     text-shadow: 0 0 8px rgba(255, 59, 59, 0.6);
 }
 
+/* ⭐ 關鍵修正：確保按鈕並排 ⭐ */
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* 按鈕間的間距 */
+}
+
 /* === 按鈕 === */
 button {
     cursor: pointer;
     border: none;
     transition: 0.2s;
     font-family: inherit;
+    /* 確保所有按鈕都有固定的高度，幫助對齊 */
+    height: 44px; 
 }
 
 .btn-primary {
@@ -94,9 +103,10 @@ button {
     box-shadow: 0 6px 20px rgba(255, 59, 59, 0.6);
 }
 
-.btn-icon {
-    width: 40px;
-    height: 40px;
+/* 修正回大廳按鈕的樣式，使用 .btn-secondary 基礎並使其變成圓形 */
+.lobby-icon-btn {
+    width: 44px; /* 寬度設為高度，使其變圓形 */
+    height: 44px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.1);
     color: white;
@@ -104,7 +114,9 @@ button {
     align-items: center;
     justify-content: center;
 }
-.btn-icon:hover { background: rgba(255, 255, 255, 0.2); }
+
+.lobby-icon-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
 
 /* === 遊戲區域 === */
 #gameArea {
