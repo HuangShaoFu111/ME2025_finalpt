@@ -106,13 +106,19 @@ def delete_user(user_id):
     """ 刪除使用者及其所有分數紀錄 """
     conn = get_db_connection()
     
-    # 關鍵：必須在執行 DELETE 之前，確保外鍵約束已開啟
+    # 雖然這行是用來開啟外鍵檢查的，但在手動刪除模式下並不是必須的，保留也無妨
     conn.execute("PRAGMA foreign_keys = ON") 
     
     try:
-        # 刪除 users 表中的紀錄
+        # Step 1: 先手動刪除該使用者的所有分數紀錄
+        # 這樣就不會觸發 FOREIGN KEY constraint failed
+        conn.execute('DELETE FROM scores WHERE user_id = ?', (user_id,))
+
+        # Step 2: 分數清空後，再安全地刪除使用者
         conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        
         conn.commit()
+        return True
     except Exception as e:
         # 捕獲所有異常，確保回滾交易
         print(f"Error deleting user: {e}")
