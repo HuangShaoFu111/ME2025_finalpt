@@ -302,7 +302,11 @@ startBtn.addEventListener('click', startGame);
 
 function startGame() {
     if (isGameRunning) return;
-
+    fetch('/api/start_game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_name: 'tetris' })
+    });
     // 重置所有狀態
     arena.forEach(row => row.fill(0));
     score = 0;

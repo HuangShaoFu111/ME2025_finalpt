@@ -141,7 +141,11 @@ function resetState() {
 
 function startGame() {
     if (gameState === "PLAYING") return;
-    
+    fetch('/api/start_game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_name: 'shaft' })
+    }).catch(err => console.error("Start game tracking failed:", err));
     startScreen.classList.add("hidden"); 
     gameState = "PLAYING";
     

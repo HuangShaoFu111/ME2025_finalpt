@@ -25,6 +25,11 @@ let icons = ["🚀", "🪐", "👽", "☄️", "🌟", "🛰️", "🛸", "🌑"
 let cards = [];
 
 function startGame() {
+    fetch('/api/start_game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_name: 'memory' })
+    });
     timer = 0;
     moves = 0;
     firstCard = null;

@@ -39,6 +39,11 @@ ball.addEventListener("mousedown", (e) => { // 改用 mousedown 反應更快
 });
 
 function startGame() {
+    fetch('/api/start_game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_name: 'whac' })
+    });
     // 重置變數
     score = 0;
     timeLeft = 30;

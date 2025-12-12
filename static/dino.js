@@ -85,7 +85,11 @@ document.addEventListener("keyup", (e) => {
 
 function startGame() {
     if (gameRunning) return;
-
+    fetch('/api/start_game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_name: 'dino' })
+    });
     resetGame();
     gameRunning = true;
     startBtn.disabled = true;

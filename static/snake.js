@@ -52,6 +52,11 @@ function resetState() {
 function initGame() {
     //resetState(); 
     isGameRunning = true; // 解鎖邏輯更新
+    fetch('/api/start_game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_name: 'snake' })
+    });
 }
 
 // === 核心遊戲迴圈 ===
