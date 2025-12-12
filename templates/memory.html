@@ -32,16 +32,27 @@
                 <div class="stat-box"><i class="fa-regular fa-clock"></i> <span id="timer">0</span>s</div>
             </div>
 
-            <button id="startBtn" class="btn-primary">START MISSION</button>
+            <button id="startBtn" class="btn-primary">START GAME</button>
             
-            <div class="action-buttons">
-                <button id="restartBtn" class="btn-icon" title="Reset"><i class="fa-solid fa-rotate-right"></i></button>
-                <button onclick="location.href='/lobby'" class="btn-icon" title="Exit"><i class="fa-solid fa-house"></i></button>
+            <div class="stat-group" style="opacity: 0; pointer-events: none;">
+                <div class="stat-box">HIDDEN</div>
             </div>
         </div>
 
         <div id="gameBoard" class="board">
-            <div class="placeholder-text">SYSTEM STANDBY... PRESS START</div>
+            <div class="placeholder-text">SYSTEM STANDBY...</div>
+        </div>
+        
+        <div class="controls-hint">
+            <span>Flip cards to find matching pairs</span>
+        </div>
+
+        <div style="margin-top: 15px; text-align: center; width: 100%;">
+            <button id="restartBtn" style="display:none;"></button> 
+
+            <button class="btn-lobby" onclick="location.href='/lobby'">
+                <i class="fa-solid fa-house"></i> Lobby
+            </button>
         </div>
     </div>
 

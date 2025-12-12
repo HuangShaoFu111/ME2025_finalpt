@@ -31,6 +31,11 @@ body {
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    
+    /* ⭐ 新增以下三行來置中所有內容 ⭐ */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .info-bar {
@@ -162,6 +167,14 @@ canvas {
     display: flex;
     gap: 15px;
     justify-content: center;
+}
+
+.controls-hint {
+    margin-top: 25px;  /* 關鍵：增加與上方遊戲畫面的距離，您可以依喜好調整數字 */
+    color: #94a3b8;    /* 讓文字維持質感灰 */
+    font-size: 0.9rem; 
+    text-align: center;
+    letter-spacing: 1px;
 }
 
 @keyframes popIn {

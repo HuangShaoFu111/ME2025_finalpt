@@ -27,19 +27,27 @@
 
     <div class="game-container">
         <div class="info-bar">
-            <div class="stat-group">
-                <div class="stat-box score-display">SCORE: <span id="score">0</span></div>
-            </div>
+            <div class="stat-box score-display">SCORE: <span id="score">0</span></div>
             
-            <div class="action-buttons">
-                <button id="startBtn" class="btn-primary">RUN</button>
-                <button onclick="location.href='/lobby'" class="btn-icon"><i class="fa-solid fa-house"></i></button>
-            </div>
+            <button id="startBtn" class="btn-primary">START RUN</button>
+            
+            <div class="stat-box" style="opacity: 0; pointer-events: none;">HIDDEN</div>
         </div>
 
         <div class="canvas-wrapper">
             <canvas id="gameCanvas" width="600" height="300"></canvas>
-            <div class="overlay-text">↑TO JUMP;↓TO DUCK</div>
+        </div>
+        
+        <div class="controls-hint">
+            <span><i class="fa-solid fa-arrow-up"></i> Jump</span>
+            <span class="divider">|</span>
+            <span><i class="fa-solid fa-arrow-down"></i> Duck</span>
+        </div>
+
+        <div style="margin-top: 15px; text-align: center; width: 100%;">
+            <button class="btn-lobby" onclick="location.href='/lobby'">
+                <i class="fa-solid fa-house"></i> Lobby
+            </button>
         </div>
     </div>
 
