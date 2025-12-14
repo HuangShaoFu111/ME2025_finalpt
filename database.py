@@ -135,6 +135,7 @@ def insert_score(user_id, game_name, score):
 def get_leaderboard(game_name):
     conn = get_db_connection()
     try:
+        # ⭐ 關鍵修改：這裡加入了 u.equipped_title 欄位
         query = '''
             SELECT u.username, u.avatar, u.equipped_title, s.score, s.timestamp 
             FROM scores s
@@ -185,27 +186,17 @@ def get_all_scores_by_user(user_id):
 # --- 商店系統核心邏輯 ---
 
 def get_wallet_info(user_id):
-    """ 計算玩家的總分與剩餘代幣 """
     conn = get_db_connection()
     try:
-        # 1. 計算所有遊戲總分 (Total Score)
         row = conn.execute("SELECT SUM(score) as total FROM scores WHERE user_id = ?", (user_id,)).fetchone()
         total_score = row['total'] if row['total'] else 0
-        
-        # 2. 獲取已花費點數 (Spent Points)
         user = conn.execute("SELECT spent_points FROM users WHERE id = ?", (user_id,)).fetchone()
         spent = user['spent_points'] if user else 0
-        
-        return {
-            "total_earned": total_score,
-            "spent": spent,
-            "balance": total_score - spent
-        }
+        return {"total_earned": total_score, "spent": spent, "balance": total_score - spent}
     finally:
         conn.close()
 
 def get_user_items(user_id):
-    """ 獲取玩家擁有的所有物品 ID """
     conn = get_db_connection()
     try:
         rows = conn.execute("SELECT item_id FROM user_items WHERE user_id = ?", (user_id,)).fetchall()
@@ -214,21 +205,13 @@ def get_user_items(user_id):
         conn.close()
 
 def purchase_item(user_id, item_id, item_type, cost):
-    """ 購買物品：扣除餘額並加入物品欄 """
     wallet = get_wallet_info(user_id)
-    if wallet['balance'] < cost:
-        return False, "Insufficient funds"
-    
+    if wallet['balance'] < cost: return False, "Insufficient funds"
     conn = get_db_connection()
     try:
-        # 檢查是否已擁有
         exists = conn.execute("SELECT 1 FROM user_items WHERE user_id=? AND item_id=?", (user_id, item_id)).fetchone()
-        if exists:
-            return False, "Already owned"
-
-        # 扣款 (增加 spent_points)
+        if exists: return False, "Already owned"
         conn.execute("UPDATE users SET spent_points = spent_points + ? WHERE id = ?", (cost, user_id))
-        # 給物品
         conn.execute("INSERT INTO user_items (user_id, item_id, item_type) VALUES (?, ?, ?)", (user_id, item_id, item_type))
         conn.commit()
         return True, "Success"
@@ -239,7 +222,6 @@ def purchase_item(user_id, item_id, item_type, cost):
         conn.close()
 
 def equip_item(user_id, item_type, value):
-    """ 裝備稱號或頭貼 """
     conn = get_db_connection()
     try:
         if item_type == 'title':
