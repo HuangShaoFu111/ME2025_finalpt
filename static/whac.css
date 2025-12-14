@@ -211,6 +211,32 @@ button {
 .btn-secondary { background: transparent; border: 1px solid #555; color: #aaa; padding: 10px 20px; border-radius: 4px; }
 .btn-secondary:hover { border-color: #fff; color: #fff; }
 
+/* ... 原有的 CSS 內容 ... */
+
+/* === 新增：底部 Lobby 按鈕樣式 (仿照 Snake 風格) === */
+.btn-lobby {
+    color: #94a3b8;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 8px 25px;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    /* 確保高度 */
+    height: 40px; 
+}
+
+.btn-lobby:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-color: white;
+}
+
 @keyframes popIn {
     from { transform: scale(0.9); opacity: 0; }
     to { transform: scale(1); opacity: 1; }

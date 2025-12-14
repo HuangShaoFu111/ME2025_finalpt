@@ -271,3 +271,27 @@ button {
     text-align: center;
     width: 100%;
 }
+
+
+/* === 新增：底部 Lobby 按鈕樣式 === */
+.btn-lobby {
+    color: #94a3b8;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 8px 25px;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    height: 40px; 
+}
+
+.btn-lobby:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-color: white;
+}

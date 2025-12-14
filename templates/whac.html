@@ -28,23 +28,22 @@
     <div class="game-container">
         <div class="info-bar">
             <div class="stat-group">
-                <div class="stat-box"><i class="fa-regular fa-clock"></i> <span id="time">30</span>s</div>
+                <div class="stat-box"><i class="fa-regular fa-clock"></i> <span id="time">60</span>s</div>
                 <div class="stat-box score-display"><i class="fa-solid fa-crosshairs"></i> <span id="score">0</span></div>
             </div>
             
             <div class="action-buttons">
                 <button id="startBtn" class="btn-primary">START MISSION</button>
-                <button onclick="location.href='/lobby'" class="btn-secondary lobby-icon-btn">
-                    <i class="fa-solid fa-house"></i>
-                </button>
-            </div>
+                </div>
         </div>
 
         <div id="gameArea">
-            <div id="ball" class="target-ball">
-                <div class="inner-circle"></div>
-                <div class="crosshair"></div>
             </div>
+
+        <div style="margin-top: 15px; text-align: center; width: 100%;">
+            <button class="btn-lobby" onclick="location.href='/lobby'">
+                <i class="fa-solid fa-house"></i> Lobby
+            </button>
         </div>
     </div>
 
