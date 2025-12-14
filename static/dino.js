@@ -36,6 +36,7 @@ let gameSpeed = GAME_SPEED_START;
 let isRunning = false;
 let isDying = false; // [新增] 控制死亡動畫狀態
 let animationId = null;
+let jumpCount = 0; // 🛡️ 新增
 
 let dino = {
     x: 50,
@@ -125,7 +126,7 @@ function startGame() {
     dino.vy = 0;
     dino.isGrounded = true;
     dino.trail = [];
-    
+    jumpCount = 0; // 🛡️ 重置
     isRunning = true;
     isDying = false; // 重置死亡狀態
     lastTime = performance.now();
@@ -186,6 +187,7 @@ function update(dt) {
         dino.vy = JUMP_FORCE;
         dino.isGrounded = false;
         createParticles(dino.x + dino.w/2, dino.y + dino.h, 5, "#00ffff");
+        jumpCount++; // 🛡️ 記錄跳躍
     }
     
     dino.vy += GRAVITY * dt;
@@ -418,7 +420,7 @@ function showGameOverModal() {
     fetch('/api/submit_score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ game_name: 'dino', score: finalScore })
+        body: JSON.stringify({ game_name: 'dino', score: finalScore ,jumps: jumpCount})
     }).then(res => res.json())
       .then(data => {
           uploadStatusEl.textContent = data.status === 'success' ? "✅ Data Archived" : "❌ Archive Failed";

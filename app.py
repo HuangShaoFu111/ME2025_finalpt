@@ -5,361 +5,264 @@ from werkzeug.utils import secure_filename
 import database
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
+app.secret_key = 'your_secret_key_here'  # 請務必改為真實的隨機密鑰
 
 # 設定圖片上傳路徑
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# 確保上傳資料夾存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# 啟動時初始化 DB
+# 初始化 DB
 database.init_db()
 
-# ==========================================
-# 🛡️ 防作弊參數設定 (Anti-Cheat Config)
-# ==========================================
-# 定義每個遊戲的「每秒最大合理得分」 (Max Points Per Second)
-# 如果 (分數 / (遊玩秒數 + 緩衝)) 超過這個值，判定為作弊
-CHEAT_CONFIG = {
-    'snake': 5.0,    # 貪食蛇一秒吃 5 個很極限了
-    'dino': 100.0,    # Dino 分數跑得比較快，給寬鬆點
-    'whac': 120.0,     # 打地鼠一秒打 3 次很極限
-    'shaft': 10.0,   # 下樓梯一秒下 6-8 層 (60FPS下)，給10比較安全
-    'tetris': 100.0, # Tetris 消四行可能有高分，加上 Hard Drop，給予較高寬容度 (例如一次得 800 分，但至少要花幾秒堆疊)
-    'memory': 100.0  # Memory 分數計算是倒扣的，最高 1000。如果 10 秒內完成，平均每秒 100 分。
-}
-
-# 在 app.py 內新增這個輔助函式
-def calculate_dino_max_score(duration):
-    # 參數來自 dino.js
-    start_speed = 600
-    accel = 5
-    max_speed = 1500
-    score_factor = 0.05
-    
-    # 計算達到最大速度需要的時間: (1500 - 600) / 5 = 180秒
-    time_to_cap = (max_speed - start_speed) / accel
-    
-    if duration <= time_to_cap:
-        # 加速階段積分公式: (StartSpeed * t + 0.5 * Accel * t^2) * Factor
-        # = (600*t + 2.5*t^2) * 0.05 = 30t + 0.125t^2
-        return 30 * duration + 0.125 * (duration ** 2)
-    else:
-        # 達到極速後的計算
-        # 前 180 秒的分數固定為 9450
-        base_score = 30 * time_to_cap + 0.125 * (time_to_cap ** 2)
-        # 剩餘時間以最大速度計算: 1500 * 0.05 = 75 分/秒
-        remaining_time = duration - time_to_cap
-        return base_score + (max_speed * score_factor * remaining_time)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# --- Helper: 取得當前登入者資訊 ---
+# --- 輔助函式 ---
 def get_current_user():
     if 'user_id' in session:
         return database.get_user_by_id(session['user_id'])
     return None
 
-# --- 頁面路由 ---
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ==========================================
+# 🛡️ 防作弊邏輯核心 (Input Validation)
+# ==========================================
+
+def validate_game_logic(game_name, score, data, duration):
+    """
+    針對不同遊戲進行「邏輯合理性」驗證
+    :param game_name: 遊戲名稱
+    :param score: 提交的分數
+    :param data: 前端傳來的完整 JSON 資料 (包含 moves, jumps 等)
+    :param duration: 伺服器計算的遊玩時間 (秒)
+    :return: (Boolean, Reason) - (是否通過, 失敗原因)
+    """
+    
+    # 1. 基礎檢查：遊玩時間過短 (秒殺)
+    # 如果分數 > 10 但時間 < 2秒，通常是不可能的 (除非是測試)
+    if score > 10 and duration < 2:
+        return False, f"Time anomaly: {duration}s"
+
+    # 2. 各遊戲專屬邏輯
+    if game_name == 'snake':
+        # 貪食蛇：分數 = 吃到的蘋果數
+        # 邏輯：吃到一個蘋果至少需要移動一次 (通常更多)。
+        # 如果 操作次數 < 分數 * 0.8 (給點寬容)，判定為異常。
+        moves = int(data.get('moves', 0))
+        if score > 5 and moves < score * 0.8:
+            return False, f"Snake logic: Score {score} but only {moves} moves"
+
+    elif game_name == 'dino':
+        # 恐龍跑酷：分數 = 距離
+        # 邏輯：分數很高但完全沒跳躍/蹲下 (jumps = 0)，判定為穿牆掛。
+        jumps = int(data.get('jumps', 0))
+        if score > 200 and jumps == 0:
+            return False, f"Dino logic: Score {score} with 0 jumps"
+        
+        # 極速檢查 (原有的 Dino 算法)
+        def calculate_dino_max(t):
+            return 30 * t + 0.125 * (t ** 2) if t <= 180 else 9450 + (75 * (t - 180))
+        
+        max_possible = calculate_dino_max(duration + 2) * 1.15 # 15% 寬容度
+        if score > max_possible:
+            return False, f"Dino speed limit: {score} > {max_possible:.0f}"
+
+    elif game_name == 'whac':
+        # 打地鼠：分數 = 擊中數 * 10
+        # 邏輯：前端傳來的 hits * 10 必須等於 score
+        hits = int(data.get('hits', 0))
+        if score != hits * 10:
+            return False, f"Whac math error: {hits} hits != {score}"
+        
+        # 手速極限：平均每秒點擊超過 10 次 (人類極限約 6-8)
+        if duration > 0 and (hits / duration) > 12:
+             return False, "Whac auto-clicker detected"
+
+    elif game_name == 'tetris':
+        # 俄羅斯方塊：如果不移動任何方塊 (piece_cnt=0) 卻有分，必為作弊
+        pieces = int(data.get('pieces', 0))
+        if score > 100 and pieces == 0:
+            return False, f"Tetris logic: Score {score} with 0 pieces"
+
+    elif game_name == 'memory':
+        # 記憶翻牌：分數由公式計算
+        # 邏輯：後端重算一次分數，誤差不能太大
+        moves = int(data.get('moves', 0))
+        # 這裡 duration 是伺服器算的，可能比前端略長，所以計算出的分數會略低，這是安全的
+        # 公式: 1000 - (time * 2) - (moves * 5)
+        calc_score = max(0, 1000 - (int(duration) * 2) - (moves * 5))
+        
+        # 允許 50 分的誤差 (因為網路延遲導致 duration 變大)
+        if score > calc_score + 50:
+            return False, f"Memory math: Server calc {calc_score}, Client sent {score}"
+
+    elif game_name == 'shaft':
+        # 下樓梯：需要左右移動
+        # 邏輯：分數高但完全沒按鍵 (moves=0)
+        moves = int(data.get('moves', 0))
+        if score > 20 and moves == 0:
+            return False, f"Shaft logic: Score {score} with 0 moves"
+
+    return True, "Pass"
+
+# --- 頁面路由 (保持不變) ---
 @app.route('/')
 def home():
-    if 'user_id' in session:
-        return redirect(url_for('lobby'))
+    if 'user_id' in session: return redirect(url_for('lobby'))
     return render_template('login.html')
 
 @app.route('/lobby')
 def lobby():
     user = get_current_user()
-    if not user:
-        return redirect(url_for('home'))
+    if not user: return redirect(url_for('home'))
     return render_template('index.html', user=user)
 
 @app.route('/game/<game_name>')
 def game_page(game_name):
     user = get_current_user()
-    if not user:
-        return redirect(url_for('home'))
-    
-    valid_games = ['snake', 'dino', 'whac', 'memory', 'tetris', 'shaft']
-    if game_name in valid_games:
+    if not user: return redirect(url_for('home'))
+    if game_name in ['snake', 'dino', 'whac', 'memory', 'tetris', 'shaft']:
         return render_template(f'{game_name}.html', user=user)
-    else:
-        return "Game not found", 404
+    return "Game not found", 404
 
 @app.route('/leaderboard')
 def leaderboard_page():
     user = get_current_user()
-    if not user:
-        return redirect(url_for('home'))
+    if not user: return redirect(url_for('home'))
     return render_template('leaderboard.html', user=user)
 
-# --- 設定與個人資料路由 ---
+@app.route('/shop')
+def shop_page():
+    user = get_current_user()
+    if not user: return redirect(url_for('home'))
+    return render_template('shop.html', user=user)
 
+# --- 會員與管理員路由 (保持不變) ---
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     user = get_current_user()
-    if not user:
-        return redirect(url_for('home'))
-        
-    error = None
-    success = None
-
+    if not user: return redirect(url_for('home'))
+    error, success = None, None
     if request.method == 'POST':
         action = request.form.get('action')
-        
         if action == 'update_id':
-            new_username = request.form['username']
-            if new_username:
-                if database.update_username(user['id'], new_username):
-                    session['username'] = new_username
-                    success = "使用者名稱已更新！"
-                    user = get_current_user()
-                else:
-                    error = "此 ID 已被使用，請換一個。"
-            else:
-                error = "ID 不可為空。"
-
+            if database.update_username(user['id'], request.form['username']):
+                session['username'] = request.form['username']
+                success = "Updated!"
+            else: error = "ID taken."
         elif action == 'upload_avatar':
-            if 'file' not in request.files:
-                error = "未選擇檔案"
-            else:
-                file = request.files['file']
-                if file.filename == '':
-                    error = "未選擇檔案"
-                elif file and allowed_file(file.filename):
-                    filename = secure_filename(f"user_{user['id']}_{file.filename}")
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                    database.update_avatar(user['id'], filename)
-                    success = "頭貼更新成功！"
-                    user = get_current_user()
-                else:
-                    error = "檔案格式不支援 (僅限 png, jpg, jpeg, gif)"
-
+            f = request.files.get('file')
+            if f and allowed_file(f.filename):
+                fname = secure_filename(f"user_{user['id']}_{f.filename}")
+                f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                database.update_avatar(user['id'], fname)
+                success = "Avatar updated!"
         elif action == 'delete_account':
             database.delete_user(user['id'])
             session.clear()
             return redirect(url_for('home'))
-
     return render_template('profile.html', user=user, error=error, success=success)
-
-# --- 功能路由 (API) ---
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        if not username or not password:
-            return render_template('register.html', error="欄位不可為空")
-        if database.create_user(username, password):
+        if database.create_user(request.form['username'], request.form['password']):
             return redirect(url_for('home'))
-        else:
-            return render_template('register.html', error="帳號已存在")
+        return render_template('register.html', error="User exists")
     return render_template('register.html')
 
 @app.route('/login', methods=['POST'])
 def login():
-    username = request.form['username']
-    password = request.form['password']
-    user = database.verify_user(username, password)
+    user = database.verify_user(request.form['username'], request.form['password'])
     if user:
         session['user_id'] = user['id']
         session['username'] = user['username']
         return redirect(url_for('lobby'))
-    else:
-        return render_template('login.html', error="帳號或密碼錯誤")
+    return render_template('login.html', error="Invalid credentials")
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('home'))
 
+@app.route('/admin')
+def admin_panel():
+    user = get_current_user()
+    if not user or not dict(user).get('is_admin', 0): return redirect(url_for('home'))
+    return render_template('admin.html', user=user, all_users=database.get_all_users())
+
+@app.route('/admin/delete_user/<int:uid>', methods=['POST'])
+def admin_delete(uid):
+    u = get_current_user()
+    if not u or not dict(u).get('is_admin', 0): return jsonify({'status':'error'}), 403
+    if uid == u['id']: return jsonify({'status':'error', 'message':'Self-delete'}), 400
+    database.delete_user(uid)
+    return jsonify({'status':'success'})
+
+@app.route('/admin/user_details/<int:uid>')
+def admin_details(uid):
+    u = get_current_user()
+    if not u or not dict(u).get('is_admin', 0): return jsonify({'status':'error'}), 403
+    scores = database.get_all_scores_by_user(uid)
+    target = database.get_user_by_id(uid)
+    organized = {}
+    for r in scores:
+        if r['game_name'] not in organized: organized[r['game_name']] = []
+        organized[r['game_name']].append({'score':r['score'], 'date':r['timestamp'].split(' ')[0]})
+    return jsonify({'status':'success', 'username':target['username'], 'avatar':target['avatar'], 'scores':organized})
+
 # ==========================================
-# 🚀 防作弊核心邏輯 (Security Core)
+# 🚀 API 路由 (含防作弊檢查)
 # ==========================================
 
 @app.route('/api/start_game', methods=['POST'])
 def start_game():
-    """ 遊戲開始時呼叫，記錄伺服器端時間 """
-    if 'user_id' not in session:
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-    
+    if 'user_id' not in session: return jsonify({'status': 'error'}), 401
     data = request.get_json()
-    game_name = data.get('game_name')
-    
-    # 記錄開始時間 (Unix Timestamp)
     session['game_start_time'] = time.time()
-    session['current_game'] = game_name
-    
-    print(f"🎮 Game Started: {game_name} by {session['username']} at {session['game_start_time']}")
+    session['current_game'] = data.get('game_name')
+    print(f"🎮 Start: {session['current_game']} by {session['username']}")
     return jsonify({'status': 'success'})
 
 @app.route('/api/submit_score', methods=['POST'])
 def submit_score():
-    if 'user_id' not in session:
-        return jsonify({'status': 'error', 'message': '未登入'}), 401
-
-    # 1. 檢查是否有「開始遊戲」的紀錄
+    if 'user_id' not in session: return jsonify({'status': 'error', 'message': '未登入'}), 401
+    
+    # 1. 檢查是否有開始紀錄
     if 'game_start_time' not in session:
-        print(f"⚠️ Cheating Detected: No start time found for {session['username']}")
-        return jsonify({'status': 'error', 'message': '非法操作：未檢測到遊戲開始'}), 400
+        return jsonify({'status': 'error', 'message': 'No start time'}), 400
 
     data = request.get_json()
     score = int(data.get('score', 0))
     game_name = data.get('game_name')
 
-    # 2. 檢查遊戲名稱是否匹配
+    # 2. 檢查遊戲匹配
     if session.get('current_game') != game_name:
-        return jsonify({'status': 'error', 'message': '遊戲狀態不匹配'}), 400
+        return jsonify({'status': 'error', 'message': 'Game mismatch'}), 400
 
-    # 3. 計算遊玩時間 (Duration)
-    start_time = session.get('game_start_time')
-    duration = time.time() - start_time
-    
-    # 清除 Session (防止重複提交)
-    session.pop('game_start_time', None)
+    # 3. 計算並清除時間
+    duration = time.time() - session.pop('game_start_time')
     session.pop('current_game', None)
 
-    # 4. 驗證分數合理性 (Validation Logic)
-    is_cheat = False
+    # 4. 執行邏輯驗證 (First Strategy)
+    is_valid, reason = validate_game_logic(game_name, score, data, duration)
     
-    # 加入 2 秒緩衝時間，避免網路延遲導致誤判
-    buffer_time = duration + 2 
-    
-    if game_name == 'dino':
-        # 使用專屬的精準算法
-        theoretical_max = calculate_dino_max_score(buffer_time)
-        # 給予額外 10% 的寬容值，防止瀏覽器計時與伺服器計時的微小差異
-        limit = theoretical_max * 1.1 
-        
-        if score > limit:
-            is_cheat = True
-            print(f"🚫 Dino Cheat: Score {score} > Limit {limit:.2f} (Time: {duration:.2f}s)")
-    # 排除極低分 (例如剛開始就死掉)，不需要驗證
-    elif score > 10:
-        if game_name in CHEAT_CONFIG:
-            max_pps = CHEAT_CONFIG[game_name]
-            # 允許 2 秒的網路延遲緩衝 (Buffer)
-            if score > (duration + 2) * max_pps:
-                is_cheat = True
-        else:
-            # 如果是未定義的新遊戲，可以選擇通過或給一個預設限制
-            # 這裡暫時放行，或給個預設值 10.0
-            if score > (duration + 2) * 10.0:
-                is_cheat = True
+    if not is_valid:
+        print(f"🚫 CHEAT BLOCKED: User {session['username']} | {game_name} | {reason}")
+        return jsonify({'status': 'error', 'message': '偵測到異常數據'}), 400
 
-    if is_cheat:
-        print(f"🚫 CHEAT BLOCKED: User {session['username']} | Game {game_name} | Score {score} | Duration {duration:.2f}s")
-        return jsonify({'status': 'error', 'message': '偵測到分數異常，無法上傳'}), 400
-
-    # 通過驗證，寫入資料庫
     database.insert_score(session['user_id'], game_name, score)
-    print(f"✅ Score Accepted: User {session['username']} | Game {game_name} | Score {score}")
+    print(f"✅ Accepted: {session['username']} | {game_name} | {score}")
     return jsonify({'status': 'success'})
 
-@app.route('/api/get_rank/<game_name>')
-def get_rank(game_name):
-    scores = database.get_leaderboard(game_name)
-    return jsonify(scores)
-
-@app.route('/api/get_my_rank/<game_name>')
-def get_my_rank(game_name):
-    user = get_current_user()
-    if not user:
-        return jsonify([])
-    scores = database.get_user_scores_by_game(user['id'], game_name)
-    return jsonify(scores)
+@app.route('/api/get_rank/<g>')
+def rank(g): return jsonify(database.get_leaderboard(g))
 
 @app.route('/api/get_my_best_scores')
-def get_my_best_scores():
-    user = get_current_user()
-    if not user:
-        return jsonify({})
-    scores_dict = database.get_all_best_scores_by_user_with_rank(user['id'])
-    return jsonify(scores_dict)
-
-@app.route('/shop')
-def shop_page():
-    user = get_current_user()
-    if not user:
-        return redirect(url_for('home'))
-    return render_template('shop.html', user=user)
-
-# app.py (修正後的管理員路由)
-
-@app.route('/admin')
-def admin_panel():
-    user = get_current_user()
-    # 1. 檢查是否登入
-    if not user:
-        return redirect(url_for('home'))
-    
-    # 2. 檢查是否為管理員 (修正點：先將 user 轉為 dict 再使用 .get)
-    if not dict(user).get('is_admin', 0):
-        return render_template('index.html', user=user, error="⛔ 權限不足：你不是管理員！")
-
-    # 3. 獲取所有使用者清單
-    all_users = database.get_all_users()
-    return render_template('admin.html', user=user, all_users=all_users)
-
-@app.route('/admin/delete_user/<int:target_user_id>', methods=['POST'])
-def admin_delete_user(target_user_id):
-    user = get_current_user()
-    
-    # 權限驗證 (修正點：同樣加入 dict() 轉換)
-    if not user or not dict(user).get('is_admin', 0):
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
-
-    # 禁止刪除自己
-    if target_user_id == user['id']:
-         return jsonify({'status': 'error', 'message': '你不能刪除自己的管理員帳號！'}), 400
-
-    # 執行刪除
-    try:
-        database.delete_user(target_user_id)
-        return jsonify({'status': 'success', 'message': '使用者已刪除'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    
-@app.route('/admin/user_details/<int:target_user_id>')
-def admin_get_user_details(target_user_id):
-    user = get_current_user()
-    
-    # 權限驗證
-    if not user or not dict(user).get('is_admin', 0):
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
-
-    # 1. 獲取該玩家所有分數
-    raw_scores = database.get_all_scores_by_user(target_user_id)
-    
-    # 2. 獲取玩家基本資料 (為了顯示在彈窗標題)
-    target_user = database.get_user_by_id(target_user_id)
-    
-    # 3. 資料整理：將分數依照遊戲名稱分類
-    # 格式範例: { 'snake': [100, 80, 50], 'tetris': [2000, 1500] }
-    organized_scores = {}
-    for row in raw_scores:
-        g_name = row['game_name']
-        if g_name not in organized_scores:
-            organized_scores[g_name] = []
-        
-        # 只保留分數與時間
-        organized_scores[g_name].append({
-            'score': row['score'],
-            'date': row['timestamp'].split(' ')[0] # 只取日期部分
-        })
-
-    return jsonify({
-        'status': 'success',
-        'username': target_user['username'],
-        'avatar': target_user['avatar'],
-        'scores': organized_scores
-    })
+def my_best():
+    u = get_current_user()
+    return jsonify(database.get_all_best_scores_by_user_with_rank(u['id'])) if u else jsonify({})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5000, use_reloader=True)
+    app.run(host='0.0.0.0', debug=True, port=5000)

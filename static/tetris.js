@@ -11,7 +11,7 @@ context.scale(20, 20);
 const modal = document.getElementById("gameOverModal");
 const finalScoreEl = document.getElementById("finalScore");
 const uploadStatusEl = document.getElementById("uploadStatus");
-
+let pieceCount = 0; // 🛡️
 let score = 0;
 let lines = 0;
 let gameOver = false;
@@ -277,6 +277,7 @@ function playerHardDrop() {
 function playerReset() {
     // 使用新的隨機機制
     player.matrix = createPiece(getNextPieceType());
+    pieceCount++; // 🛡️ 每次生成新方塊計數 +1
     player.pos.y = 0;
     player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
 
@@ -312,6 +313,7 @@ function startGame() {
     score = 0;
     lines = 0;
     pieceBag = []; // 重置隨機袋
+    pieceCount = 0; // 🛡️
     scoreEl.innerText = 0;
     linesEl.innerText = 0;
     gameOver = false;
@@ -343,7 +345,8 @@ function endGame() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             game_name: 'tetris',
-            score: score
+            score: score,
+            pieces: pieceCount // 🛡️ 傳送方塊數量
         })
     })
     .then(res => res.json())

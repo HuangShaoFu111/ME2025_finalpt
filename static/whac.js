@@ -10,7 +10,7 @@ const modal = document.getElementById("gameOverModal");
 const finalScoreEl = document.getElementById("finalScore");
 const uploadStatusEl = document.getElementById("uploadStatus");
 const modalRestartBtn = document.getElementById("modalRestartBtn");
-
+let hitCount = 0; // 🛡️
 let score = 0;
 let timeLeft = 60;
 let timerInterval;
@@ -62,7 +62,7 @@ function startGame() {
     timeLeft = 60;
     isPlaying = true;
     lastClickTime = 0;
-
+    hitCount = 0; // 🛡️
     scoreEl.textContent = score;
     timeEl.textContent = timeLeft;
     modal.classList.add("hidden");
@@ -97,6 +97,7 @@ function handleHit(ballElement, e) {
 
     // 加分
     score += SCORE_PER_HIT;
+    hitCount++; // 🛡️ 記錄擊中數
     scoreEl.textContent = score;
 
     // 特效
@@ -204,7 +205,7 @@ function endGame() {
     fetch('/api/submit_score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ game_name: 'whac', score: score })
+        body: JSON.stringify({ game_name: 'whac', score: score,hits: hitCount})
     })
     .then(res => res.json())
     .then(data => {
