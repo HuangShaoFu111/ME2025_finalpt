@@ -13,6 +13,15 @@
     let score = 0, isGameRunning = false, lastTime = 0, accumulator = 0;
     let totalMoves = 0;
 
+    // 🛡️ 簡單的路徑校驗雜湊值
+    let pathHash = 0;
+    
+    // 簡單的雜湊算法 (防止數據篡改)
+    function updateHash(direction, score) {
+        // 根據方向、當前分數和移動數產生一個變動的值
+        pathHash = (pathHash + direction.x * 11 + direction.y * 17 + score * 31) % 9999999;
+    }
+
     function resetState() {
         snake = [{ x: 200, y: 200 }, { x: 180, y: 200 }, { x: 160, y: 200 }];
         prevSnake = JSON.parse(JSON.stringify(snake));
@@ -22,6 +31,7 @@
         scoreEl.textContent = 0;
         food = spawnFood();
         totalMoves = 0;
+        pathHash = 0; // 重置 hash
         modal.classList.add("hidden");
     }
 
@@ -53,6 +63,9 @@
 
     function update() {
         totalMoves++; 
+
+        // 🛡️ 每次移動都更新 Hash
+        updateHash(direction, score);
 
         if (inputQueue.length > 0) direction = inputQueue.shift();
         prevSnake = JSON.parse(JSON.stringify(snake));
@@ -125,10 +138,16 @@
         finalScoreEl.textContent = score;
         uploadStatusEl.textContent = "Uploading...";
 
+        // 🛡️ 發送 pathHash 給後端驗證
         fetch('/api/submit_score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ game_name: 'snake', score: score, moves: totalMoves })
+            body: JSON.stringify({ 
+                game_name: 'snake', 
+                score: score, 
+                moves: totalMoves,
+                hash: pathHash // 新增欄位
+            })
         })
         .then(res => res.json())
         .then(data => {

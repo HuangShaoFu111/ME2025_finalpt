@@ -53,10 +53,37 @@ def validate_game_logic(game_name, score, data, duration):
 
     # 2. 各遊戲專屬邏輯
     if game_name == 'snake':
-        moves = int(data.get('moves', 0))
-        # 蛇每吃一個食物至少需要移動幾步，如果 moves 遠小於 score，表示可能直接改分數
-        if score > 5 and moves < score: 
-            return False, f"Snake logic: Score {score} but only {moves} moves"
+        # --- 🛡️ 改良後的防作弊邏輯 ---
+        
+        # 1. 物理速度限制 (Speed Hack Check)
+        # Snake 前端設定 TICK_RATE = 100ms (即每秒最多 10 步)
+        # 給予 10% 的網絡延遲/計時器寬容度
+        max_possible_moves = (duration * 10) * 1.2 + 5 
+        
+        if moves > max_possible_moves:
+            return False, f"Speed hack: {moves} moves in {duration:.2f}s (Max: {max_possible_moves:.0f})"
+
+        # 2. 最小步數邏輯 (Teleport Hack Check)
+        # 蛇不可能每一步都吃到食物。
+        # 假設平均每 2 步吃到一個食物已經是神級運氣 (通常需要 10+ 步)
+        # 如果 moves < score * 2，極大機率是直接發包修改分數
+        if score > 5 and moves < score * 2:
+            return False, f"Impossible efficiency: Score {score} with only {moves} moves"
+
+        # 3. 極限分數檢查 (針對「短時間」)
+        # 如果時間只有 10 秒，理論最高分不可能超過 10 (甚至更低，因為要移動)
+        # 這裡設定每秒最多獲得 1.5 分 (非常寬鬆的設定)
+        max_possible_score = duration * 1.5
+        if score > 5 and score > max_possible_score:
+            return False, f"Score too high for time: {score} in {duration:.2f}s"
+        
+        # 4. 簡單的 Hash 存在性檢查 (防止最粗糙的 Postman 請求)
+        if score > 0 and client_hash is None:
+             return False, "Missing validation hash"
+             
+        # 進階：如果你在 Python 裡實作了跟 JS 一樣的 updateHash 邏輯，
+        # 你可以要求前端傳送整個 inputQueue，然後後端重跑一次來算出 Hash 是否匹配。
+        # 但對於小遊戲來說，上面的物理限制通常就夠了。
 
     elif game_name == 'dino':
         jumps = int(data.get('jumps', 0))
