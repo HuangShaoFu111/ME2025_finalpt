@@ -263,19 +263,31 @@ def start_game():
 def submit_score():
     if 'user_id' not in session: return jsonify({'status': 'error', 'message': '未登入'}), 401
     if 'game_start_time' not in session: return jsonify({'status': 'error'}), 400
+    
     data = request.get_json()
     score = int(data.get('score', 0))
     game_name = data.get('game_name')
     
+    # 計算真實遊玩時間
+    start_time = session.get('game_start_time')
+    current_time = time.time()
+    duration = current_time - start_time
+    
     if session.get('current_game') != game_name: return jsonify({'status': 'error'}), 400
+    
+    # 清除 session 狀態前先保留變數以供檢查
+    # session.pop('game_start_time', None) # 建議：驗證完再清除，或者在此處清除皆可
+    
+    # 執行邏輯驗證 (修正：傳入真實 duration)
+    is_valid, reason = validate_game_logic(game_name, score, data, duration=duration)
+    
+    # 驗證後再清除 Session
     session.pop('game_start_time', None)
     session.pop('current_game', None)
 
-    # 執行邏輯驗證
-    is_valid, reason = validate_game_logic(game_name, score, data, duration=0) # duration 暫時傳0或計算真實值
     if not is_valid:
-        print(f"🚫 CHEAT BLOCKED: User {session['username']} | {game_name} | {reason}")
-        return jsonify({'status': 'error', 'message': '偵測到異常數據'}), 400
+        print(f"🚫 CHEAT BLOCKED: User {session['username']} | {game_name} | Score: {score} | Time: {duration:.2f}s | Reason: {reason}")
+        return jsonify({'status': 'error', 'message': f'偵測到異常數據: {reason}'}), 400
 
     database.insert_score(session['user_id'], game_name, score)
     return jsonify({'status': 'success'})

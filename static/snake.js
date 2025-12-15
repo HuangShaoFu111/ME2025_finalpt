@@ -54,6 +54,8 @@ function gameLoop(currentTime) {
 }
 
 function update() {
+    totalMoves++; 
+
     if (inputQueue.length > 0) direction = inputQueue.shift();
     prevSnake = JSON.parse(JSON.stringify(snake));
     let head = { x: snake[0].x + direction.x * gridSize, y: snake[0].y + direction.y * gridSize };
@@ -64,7 +66,7 @@ function update() {
     if (head.y >= canvas.height) head.y = 0;
 
     for (let i = 0; i < snake.length - 1; i++) if (head.x === snake[i].x && head.y === snake[i].y) return gameOver();
-
+    // 🛡️ 修正：每一幀更新都算一次移動，這樣才能正確反映遊戲進程
     snake.unshift(head);
     if (head.x === food.x && head.y === food.y) {
         score++;
@@ -114,7 +116,6 @@ function handleInput(e) {
 
     if (newDir && inputQueue.length < 3) {
         inputQueue.push(newDir);
-        totalMoves++; // 🛡️ 記錄操作
     }
 }
 

@@ -31,6 +31,7 @@ let frameCount = 0;
 let gameSpeed = INITIAL_PLATFORM_SPEED;
 let lastTime = 0;
 let accumulator = 0; // ⏱️ 時間累積器
+let moves = 0; // 🛡️ 新增移動計數
 
 // 玩家設定
 const initialPlayerState = {
@@ -119,6 +120,7 @@ function resetState() {
     score = 0;
     hp = 100;
     frameCount = 0;
+    moves = 0; // 重置移動計數
     gameSpeed = INITIAL_PLATFORM_SPEED; 
     
     depthEl.innerText = score;
@@ -169,9 +171,11 @@ function update() {
     // 1. 玩家水平移動
     if (keys.ArrowLeft) {
         player.vx = -PLAYER_HORIZONTAL_SPEED;
+        moves++; // 🛡️ 記錄移動
     } else if (keys.ArrowRight) {
         player.vx = PLAYER_HORIZONTAL_SPEED;
-    } else {
+        moves++; // 🛡️ 記錄移動
+    }else {
         player.vx *= FRICTION; 
         if(Math.abs(player.vx) < 0.1) player.vx = 0;
     }
@@ -384,7 +388,8 @@ function gameOver() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             game_name: 'shaft',
-            score: score
+            score: score,
+            moves: moves // 🛡️ 必須傳送此欄位
         })
     })
     .then(res => res.json())

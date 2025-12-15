@@ -76,6 +76,9 @@ def verify_user(username, password):
 def get_user_by_id(user_id):
     conn = get_db_connection()
     try:
+        # 確保這裡有選取 equipped_title 和 spent_points (如果前端有要顯示點數)
+        # 原始代碼已經有 equipped_title，這是正確的。
+        # 建議修改如下以防萬一：
         return conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     finally:
         conn.close()
