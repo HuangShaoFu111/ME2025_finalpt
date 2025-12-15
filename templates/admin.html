@@ -275,21 +275,22 @@
                 document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
             }
 
-            // 新增發送警告功能
-            function warnUser(userId, username) {
-                if (confirm(`⚠️ CONFIRM ACTION \n\nSend a formal warning to "${username}"?\nThey will see a popup violation notice upon next login.`)) {
-                    fetch(`/admin/warn_user/${userId}`, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            alert("✅ Warning Sent!");
-                        } else {
-                            alert("Error: " + data.message);
-                        }
-                    });
-                }
-            }
         });
+
+        // 新增發送警告功能
+        function warnUser(userId, username) {
+            if (confirm(`⚠️ CONFIRM ACTION \n\nSend a formal warning to "${username}"?\nThey will see a popup violation notice upon next login.`)) {
+                fetch(`/admin/warn_user/${userId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert("✅ Warning Sent!");
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                });
+            }
+        }
 
         // === 刪除使用者邏輯 ===
         function deleteUser(userId, username) {

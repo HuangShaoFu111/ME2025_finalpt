@@ -160,7 +160,7 @@ def lobby():
     if user.get('warning_pending'):
         show_warning = True
         database.clear_warning_pending(user['id']) # 清除標記，確保只跳一次
-    return render_template('index.html', user=user)
+    return render_template('index.html', user=user, show_warning=show_warning)
 
 @app.route('/game/<game_name>')
 def game_page(game_name):
