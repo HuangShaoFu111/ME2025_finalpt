@@ -18,6 +18,8 @@
     let isGameRunning = false;
     let requestID = null;
     let pieceBag = [];
+    let gameHash = 0;
+    function updateHash(val) { gameHash = (gameHash + val * 37) % 999999; }
 
     // 方塊與矩陣邏輯 (封裝在內部)
     function createMatrix(w, h) {
@@ -85,6 +87,7 @@
                 if (value !== 0) arena[y + player.pos.y][x + player.pos.x] = value;
             });
         });
+        updateHash(player.score || 1); // 落地時更新
     }
 
     function collide(arena, player) {
@@ -113,6 +116,7 @@
         }
         scoreEl.innerText = score;
         linesEl.innerText = lines;
+        updateHash(score); // 消行得分時更新
     }
 
     function getGhostPos() {
@@ -216,6 +220,7 @@
         pieceCount = 0;
         scoreEl.innerText = 0;
         linesEl.innerText = 0;
+        gameHash = 0;
         gameOver = false;
         isGameRunning = true;
         
@@ -243,7 +248,12 @@
         fetch('/api/submit_score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ game_name: 'tetris', score: score, pieces: pieceCount })
+            body: JSON.stringify({ 
+                game_name: 'tetris', 
+                score: score, 
+                pieces: pieceCount, 
+                hash: gameHash // 新增
+            })
         })
         .then(res => res.json())
         .then(data => {

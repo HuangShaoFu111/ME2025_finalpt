@@ -21,6 +21,9 @@
     let lastClickTime = 0;
     const HUMAN_LIMIT_MS = 80; // 人類極限手速
 
+    let gameHash = 0;
+    function updateHash(x, y) { gameHash = (gameHash + x + y + 17) % 999999; }
+
     startBtn.addEventListener("click", startGame);
     modalRestartBtn.addEventListener("click", startGame);
 
@@ -54,7 +57,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ game_name: 'whac' })
         });
-
+        
+        gameHash = 0;
         score = 0;
         timeLeft = 60;
         isPlaying = true;
@@ -93,6 +97,7 @@
 
         ballElement.remove();
         spawnBall(false);
+        updateHash(Math.floor(e.clientX), Math.floor(e.clientY)); // 記錄點擊座標特徵
     }
 
     function spawnBall(isTrap = false) {
@@ -172,7 +177,12 @@
         fetch('/api/submit_score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ game_name: 'whac', score: score, hits: hitCount})
+            body: JSON.stringify({ 
+                game_name: 'whac', 
+                score: score, 
+                hits: hitCount,
+                hash: gameHash // 新增
+            })
         })
         .then(res => res.json())
         .then(data => {

@@ -46,85 +46,98 @@ def allowed_file(filename):
 # ==========================================
 
 def validate_game_logic(game_name, score, data, duration):
-    # 1. 基礎檢查：遊玩時間過短 (秒殺)
-    # 如果分數大於 0 但時間極短，視為腳本直接送出請求
-    if score > 0 and duration < 1.5:
-        return False, f"Impossible speed: {duration}s"
+    # 0. 基礎檢查：人類反應極限
+    # 任何遊戲都不可能在 0.5 秒內完成並獲得分數 (除非是極低分)
+    if score > 10 and duration < 0.5:
+        return False, f"Impossible reaction time: {duration}s"
 
-    # 2. 各遊戲專屬邏輯
+    # 寬容度設定 (考慮網路延遲與 FPS 波動)
+    TOLERANCE = 1.2 
+
+    # === 🐍 Snake 檢測 ===
     if game_name == 'snake':
-        # --- 🛡️ 改良後的防作弊邏輯 ---
-        
-        # 1. 物理速度限制 (Speed Hack Check)
-        # Snake 前端設定 TICK_RATE = 100ms (即每秒最多 10 步)
-        # 給予 10% 的網絡延遲/計時器寬容度
-        max_possible_moves = (duration * 10) * 1.2 + 5 
-        
+        moves = int(data.get('moves', 0))
+        # 物理極限：每秒最多 10 步 (TICK_RATE = 100ms)
+        max_possible_moves = (duration * 10) * TOLERANCE + 5
         if moves > max_possible_moves:
-            return False, f"Speed hack: {moves} moves in {duration:.2f}s (Max: {max_possible_moves:.0f})"
-
-        # 2. 最小步數邏輯 (Teleport Hack Check)
-        # 蛇不可能每一步都吃到食物。
-        # 假設平均每 2 步吃到一個食物已經是神級運氣 (通常需要 10+ 步)
-        # 如果 moves < score * 2，極大機率是直接發包修改分數
+            return False, f"Speed hack: {moves} moves > limit {max_possible_moves:.0f}"
+        # 效率檢測：移動數過少
         if score > 5 and moves < score * 2:
-            return False, f"Impossible efficiency: Score {score} with only {moves} moves"
+            return False, f"Teleport detected: Score {score} with only {moves} moves"
 
-        # 3. 極限分數檢查 (針對「短時間」)
-        # 如果時間只有 10 秒，理論最高分不可能超過 10 (甚至更低，因為要移動)
-        # 這裡設定每秒最多獲得 1.5 分 (非常寬鬆的設定)
-        max_possible_score = duration * 1.5
-        if score > 5 and score > max_possible_score:
-            return False, f"Score too high for time: {score} in {duration:.2f}s"
-        
-        # 4. 簡單的 Hash 存在性檢查 (防止最粗糙的 Postman 請求)
-        if score > 0 and client_hash is None:
-             return False, "Missing validation hash"
-             
-        # 進階：如果你在 Python 裡實作了跟 JS 一樣的 updateHash 邏輯，
-        # 你可以要求前端傳送整個 inputQueue，然後後端重跑一次來算出 Hash 是否匹配。
-        # 但對於小遊戲來說，上面的物理限制通常就夠了。
-
-    elif game_name == 'dino':
-        jumps = int(data.get('jumps', 0))
-        if score > 100 and jumps == 0:
-            return False, f"Dino logic: Score {score} with 0 jumps"
-        # 嚴格的速度限制檢查
-        def calculate_dino_max(t):
-            # 根據遊戲設定的加速曲線計算理論最高分
-            return 30 * t + 0.125 * (t ** 2) if t <= 180 else 9450 + (75 * (t - 180))
-        max_possible = calculate_dino_max(duration + 1) * 1.2 # 給予 20% 寬容度
-        if score > max_possible:
-            return False, f"Dino speed limit exceeded: {score} > {max_possible:.0f}"
-
-    elif game_name == 'whac':
-        hits = int(data.get('hits', 0))
-        if score != hits * 10:
-            return False, f"Whac math error: {hits} hits != {score}"
-        # 人類極限 CPS (Clicks Per Second) 檢查
-        if duration > 0 and (hits / duration) > 8: # 每秒點超過 8 下視為自動連點程式
-             return False, "Whac auto-clicker detected"
-
+    # === 🧱 Tetris 檢測 ===
     elif game_name == 'tetris':
         pieces = int(data.get('pieces', 0))
-        if score > 100 and pieces < 2:
-            return False, f"Tetris logic: Score {score} with too few pieces ({pieces})"
+        # 物理極限：人類極限最快約 0.3~0.5 秒放一個方塊 (考慮移動和鎖定延遲)
+        # 設寬鬆點：每秒最多 3 個方塊
+        if pieces > (duration * 3) * TOLERANCE + 5:
+             return False, f"Auto-dropper: {pieces} pieces in {duration:.2f}s"
+        # 邏輯檢測：方塊數過少
+        # 每個方塊最多消 4 行 (40分)，甚至更少。如果分數很高但方塊很少，就是作弊。
+        # 平均每個方塊就算完美操作也難以超過 100 分 (連擊除外，但這是一個保守估計)
+        if score > 500 and score / (pieces + 1) > 500:
+             return False, f"Score mismatch: {score} points with {pieces} pieces"
 
-    elif game_name == 'memory':
-        moves = int(data.get('moves', 0))
-        # 記憶遊戲的理論最高分計算
-        calc_score = max(0, 1000 - (int(duration) * 2) - (moves * 5))
-        # 前端可能有 combo 加分，給予較大寬容度 (+300)
-        if score > calc_score + 300:
-            return False, f"Memory math: Server calc {calc_score}, Client sent {score}"
+    # === 🔨 Whac-A-Mole 檢測 ===
+    elif game_name == 'whac':
+        hits = int(data.get('hits', 0))
+        # 邏輯檢測：分數必須等於打擊數 * 10 (後端硬性規定)
+        if score != hits * 10:
+            return False, f"Score manipulation: {score} != {hits}*10"
+        # 物理極限：人類 CPS (Clicks Per Second) 上限
+        # 金氏世界紀錄約 14 CPS，普通人極限約 7-9。設為 10 寬容值。
+        if duration > 1 and (hits / duration) > 12:
+            return False, f"Auto-clicker: {hits} hits in {duration:.2f}s ({hits/duration:.1f} CPS)"
 
+    # === 🪜 Shaft (下樓梯) 檢測 ===
     elif game_name == 'shaft':
         moves = int(data.get('moves', 0))
-        # 下樓梯如果不移動 (左右鍵) 幾乎無法生存很久
-        if score > 30 and moves < 5:
-            return False, f"Shaft logic: Score {score} with minimal moves"
+        # 物理極限：分數是基於時間/幀數 (frame / 10)
+        # 60 FPS 下，每秒最多產生 6 分。
+        max_score = (duration * 6) * TOLERANCE + 10
+        if score > max_score:
+            return False, f"Speed hack: Score {score} > Time Limit {max_score:.0f}"
+        # 邏輯檢測：如果不移動 (moves=0)，很快就會被刺死或摔死
+        if score > 50 and moves < 5:
+            return False, f"No input detected: Score {score} with {moves} moves"
 
-    return True, "Pass"
+    # === 🦖 Dino 檢測 ===
+    elif game_name == 'dino':
+        jumps = int(data.get('jumps', 0))
+        # 物理極限：計算理論最高分
+        # 遊戲速度隨時間線性增加：Speed(t) = Start + Accel * t
+        # 距離(分數)是速度的積分。這裡用一個簡化寬鬆公式。
+        # 正常玩 60秒約 1000-1500 分。
+        max_possible_score = (duration * 30 + (0.5 * duration**2)) * TOLERANCE + 100
+        if score > max_possible_score:
+            return False, f"Speed hack: Score {score} > Physics Limit {max_possible_score:.0f}"
+        # 邏輯檢測：跳躍檢查
+        # 如果跑了很遠卻沒跳過，除非運氣極好全是天空障礙 (機率極低)
+        if score > 500 and jumps == 0:
+            return False, f"Bot detected: Score {score} with 0 jumps"
+
+    # === 🧠 Memory 檢測 ===
+    elif game_name == 'memory':
+        moves = int(data.get('moves', 0))
+        # 物理極限：最短翻牌時間
+        # 翻開兩張牌 + 判斷 + 下一次點擊，最快也要 0.5~0.8 秒
+        if moves > 0 and (duration / moves) < 0.4:
+            return False, f"Speed clicker: {moves} moves in {duration:.2f}s"
+        # 邏輯檢測：分數計算驗證
+        # 後端重算一次分數，允許微小誤差
+        calc_score = max(0, 1000 - (int(duration) * 2) - (moves * 5))
+        # 如果前端傳來的分數比後端算的還高很多 (例如高出 200 分來自不存在的 combo)
+        if score > calc_score + 300: 
+            return False, f"Score calculation mismatch: Client {score} vs Server {calc_score}"
+
+    # === Hash 檢查 (通用) ===
+    # 這是為了防禦最簡單的「重放攻擊」或「未經修改腳本的直接 API 呼叫」
+    if data.get('hash') is None:
+        # 為了相容舊版前端，這裡可以只 print warning，或者強制 return False
+        print(f"⚠️ Warning: Missing hash for {game_name}")
+        return False, "Missing security hash" # 若前端都更新了，建議取消註解這行
+
+    return True, "Valid"
 
 # --- 頁面路由 ---
 @app.route('/')

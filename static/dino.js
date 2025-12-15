@@ -40,6 +40,9 @@
     let stars = [];
     let groundOffset = 0;
 
+    let gameHash = 0;
+    function updateHash(dt) { gameHash = (gameHash + Math.floor(dt * 1000)) % 999999; }
+
     function init() {
         for(let i=0; i<30; i++) {
             stars.push({
@@ -89,6 +92,7 @@
         }).catch(console.error);
 
         score = 0;
+        gameHash = 0;
         gameSpeed = GAME_SPEED_START;
         obstacles = [];
         particles = [];
@@ -173,6 +177,7 @@
 
         updateObstacles(dt);
         updateBackground(dt);
+        updateHash(dt);
     }
 
     function updateObstacles(dt) {
@@ -319,7 +324,12 @@
         fetch('/api/submit_score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ game_name: 'dino', score: finalScore, jumps: jumpCount })
+            body: JSON.stringify({ 
+                game_name: 'dino', 
+                score: finalScore, 
+                jumps: jumpCount,
+                hash: gameHash // 新增
+            })
         }).then(res => res.json())
         .then(data => {
             uploadStatusEl.textContent = data.status === 'success' ? "✅ Data Archived" : "❌ Archive Failed";

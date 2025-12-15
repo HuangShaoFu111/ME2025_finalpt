@@ -30,6 +30,9 @@
     let accumulator = 0; 
     let moves = 0; 
 
+    let gameHash = 0;
+    function updateHash(val) { gameHash = (gameHash + val * 13) % 999999; }
+
     const initialPlayerState = { x: 150, y: 100, w: 20, h: 20, vx: 0, vy: 0, onGround: false, invincibleUntil: 0, isHurt: false };
     let player = { ...initialPlayerState };
     const platforms = [];
@@ -123,6 +126,7 @@
         
         lastTime = performance.now();
         accumulator = 0;
+        gameHash = 0;
         requestAnimationFrame(gameLoop); 
     }
 
@@ -136,9 +140,11 @@
         if (keys.ArrowLeft) {
             player.vx = -PLAYER_HORIZONTAL_SPEED;
             moves++; 
+            updateHash(1);
         } else if (keys.ArrowRight) {
             player.vx = PLAYER_HORIZONTAL_SPEED;
             moves++; 
+            updateHash(2);
         }else {
             player.vx *= FRICTION; 
             if(Math.abs(player.vx) < 0.1) player.vx = 0;
@@ -334,10 +340,11 @@
         fetch('/api/submit_score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                game_name: 'shaft',
-                score: score,
-                moves: moves 
+            body: JSON.stringify({ 
+                game_name: 'shaft', 
+                score: score, 
+                moves: moves,
+                hash: gameHash // 新增
             })
         })
         .then(res => res.json())

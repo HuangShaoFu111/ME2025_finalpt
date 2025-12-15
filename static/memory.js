@@ -26,6 +26,9 @@
     let icons = ["🚀", "🪐", "👽", "☄️", "🌟", "🛰️", "🛸", "🌑"];
     let cardData = []; // 儲存 index -> icon 的對照表
 
+    let gameHash = 0;
+    function updateHash(index) { gameHash = (gameHash + index * 19) % 999999; }
+
     function startGame() {
         if(gameActive) return; // 防止重複觸發
 
@@ -38,6 +41,7 @@
         timer = 0;
         moves = 0;
         combo = 0;
+        gameHash = 0;
         firstCard = null;
         secondCard = null;
         lockBoard = false;
@@ -124,6 +128,7 @@
         movesEl.textContent = moves;
 
         checkMatch();
+        updateHash(index); // 記錄翻開的卡片索引
     }
 
     function checkMatch() {
@@ -213,10 +218,11 @@
         fetch('/api/submit_score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                game_name: 'memory',
-                score: calculatedScore,
-                moves: moves // 🛡️ 補上 moves 欄位
+            body: JSON.stringify({ 
+                game_name: 'memory', 
+                score: calculatedScore, 
+                moves: moves,
+                hash: gameHash // 新增
             })
         })
         .then(res => res.json())

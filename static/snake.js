@@ -12,6 +12,7 @@
     let snake = [], prevSnake = [], direction = { x: 0, y: 0 }, inputQueue = [], food = { x: 0, y: 0 };
     let score = 0, isGameRunning = false, lastTime = 0, accumulator = 0;
     let totalMoves = 0;
+    let integrityCheck = 0;
 
     // 🛡️ 簡單的路徑校驗雜湊值
     let pathHash = 0;
@@ -85,6 +86,7 @@
             food = spawnFood();
             prevSnake.push(prevSnake[prevSnake.length - 1]);
         } else { snake.pop(); }
+        integrityCheck += 100; // 假設正常是 100
     }
 
     function draw(alpha) {
@@ -146,7 +148,8 @@
                 game_name: 'snake', 
                 score: score, 
                 moves: totalMoves,
-                hash: pathHash // 新增欄位
+                hash: pathHash, // 新增欄位
+                check: integrityCheck
             })
         })
         .then(res => res.json())
