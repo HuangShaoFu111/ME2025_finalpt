@@ -238,3 +238,59 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* === 作弊嫌疑犯樣式 === */
+.user-card.is-suspect {
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.6), rgba(239, 68, 68, 0.1));
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.1);
+}
+
+.user-card.is-suspect::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 4px; height: 100%;
+    background: #ef4444; /* 紅色條 */
+}
+
+.badge-suspect {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    animation: pulseRed 2s infinite;
+}
+
+/* === 按鈕群組 === */
+.card-actions {
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+/* 警告按鈕 */
+.btn-warn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(234, 179, 8, 0.1); /* 黃色 */
+    color: #fcd34d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.btn-warn:hover {
+    background: #eab308;
+    color: black;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(234, 179, 8, 0.4);
+}
+
+@keyframes pulseRed {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}

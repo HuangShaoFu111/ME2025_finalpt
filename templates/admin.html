@@ -148,16 +148,19 @@
                 <button class="filter-btn active" data-filter="all">All Users</button>
                 <button class="filter-btn" data-filter="admin">Admins</button>
                 <button class="filter-btn" data-filter="player">Players</button>
-            </div>
+                <button class="filter-btn" data-filter="suspect" style="color: #fca5a5; border-color: #7f1d1d;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Suspects
+                </button>
         </div>
 
         <div class="user-grid" id="userGrid">
             {% for u in all_users %}
-            <div class="user-card {% if u.is_admin %}is-admin{% endif %}" 
-                 data-username="{{ u.username | lower }}" 
-                 data-id="{{ u.id }}"
-                 data-role="{% if u.is_admin %}admin{% else %}player{% endif %}"
-                 onclick="openUserDetail({{ u.id }})">
+            <div class="user-card {% if u.is_admin %}is-admin{% endif %} {% if u.is_suspect %}is-suspect{% endif %}" 
+                    data-username="{{ u.username | lower }}" 
+                    data-id="{{ u.id }}"
+                    data-role="{% if u.is_admin %}admin{% else %}player{% endif %}"
+                    data-suspect="{% if u.is_suspect %}true{% else %}false{% endif %}"
+                    onclick="openUserDetail({{ u.id }})">
                 
                 {% if u.avatar == 'default.png' %}
                     <img src="https://ui-avatars.com/api/?name={{ u.username }}&background=0f172a&color=fff" class="card-avatar">
@@ -171,24 +174,32 @@
                         {% if u.is_admin %}
                             <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> ADMIN</span>
                         {% endif %}
+                        {% if u.is_suspect %}
+                            <span class="badge badge-suspect"><i class="fa-solid fa-bug"></i> SUSPECT</span>
+                        {% endif %}
                     </div>
                     <div class="user-meta">
                         <span class="badge badge-id">ID: {{ u.id }}</span>
-                        <span style="font-size: 0.7rem; color: #64748b; margin-left: 5px;">Click to view details</span>
                     </div>
                 </div>
 
-                {% if u.id != user.id %}
-                    <button class="btn-delete" 
-                            data-userid="{{ u.id }}" 
-                            data-username="{{ u.username }}"
-                            title="Delete User"
-                            onclick="event.stopPropagation(); deleteUser(this.dataset.userid, this.dataset.username);">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                {% else %}
-                    <div style="color: var(--text-muted); font-size: 0.8rem; font-style: italic;">It's You</div>
-                {% endif %}
+                <div class="card-actions">
+                    {% if u.is_suspect and not u.is_admin %}
+                        <button class="btn-warn" 
+                                title="Send Warning"
+                                onclick="event.stopPropagation(); warnUser({{ u.id }}, '{{ u.username }}');">
+                            <i class="fa-solid fa-envelope-circle-check"></i>
+                        </button>
+                    {% endif %}
+
+                    {% if u.id != user.id %}
+                        <button class="btn-delete" 
+                                title="Delete User"
+                                onclick="event.stopPropagation(); deleteUser({{ u.id }}, '{{ u.username }}');">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -235,17 +246,23 @@
             });
 
             function filterUsers() {
-                const input = searchInput.value.toLowerCase();
+                const input = document.getElementById('searchInput').value.toLowerCase();
                 const cards = document.querySelectorAll('.user-card');
+                const currentFilter = document.querySelector('.filter-btn.active').getAttribute('data-filter');
                 let visibleCount = 0;
 
                 cards.forEach(card => {
                     const name = card.getAttribute('data-username');
                     const id = card.getAttribute('data-id');
                     const role = card.getAttribute('data-role');
+                    const isSuspect = card.getAttribute('data-suspect') === 'true'; // 取得作弊屬性
                     
                     const matchesSearch = name.includes(input) || id.includes(input);
-                    const matchesType = (currentFilter === 'all') || (currentFilter === role);
+                    
+                    let matchesType = false;
+                    if (currentFilter === 'all') matchesType = true;
+                    else if (currentFilter === 'suspect') matchesType = isSuspect; // 篩選作弊者
+                    else matchesType = (role === currentFilter);
 
                     if (matchesSearch && matchesType) {
                         card.style.display = 'flex';
@@ -255,6 +272,21 @@
                     }
                 });
                 document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+
+            // 新增發送警告功能
+            function warnUser(userId, username) {
+                if (confirm(`⚠️ CONFIRM ACTION \n\nSend a formal warning to "${username}"?\nThey will see a popup violation notice upon next login.`)) {
+                    fetch(`/admin/warn_user/${userId}`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            alert("✅ Warning Sent!");
+                        } else {
+                            alert("Error: " + data.message);
+                        }
+                    });
+                }
             }
         });
 

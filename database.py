@@ -240,3 +240,29 @@ def equip_item(user_id, item_type, value):
         return False
     finally:
         conn.close()
+
+# [database.py] 請新增以下函數
+
+def mark_user_suspect(user_id):
+    """將使用者標記為作弊嫌疑犯"""
+    conn = get_db_connection() # 請使用你原本的連線方式
+    conn.execute('UPDATE users SET is_suspect = 1 WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+
+def set_warning_pending(user_id):
+    """設定使用者下次登入需顯示警告"""
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET warning_pending = 1 WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+
+def clear_warning_pending(user_id):
+    """清除警告標記 (表示已讀)"""
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET warning_pending = 0 WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+
+# 同時，請確保 get_all_users() 和 get_user_by_id() 回傳的字典裡
+# 包含了 'is_suspect' 和 'warning_pending' 這兩個欄位

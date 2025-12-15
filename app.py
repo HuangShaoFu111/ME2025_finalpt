@@ -149,6 +149,12 @@ def home():
 def lobby():
     user = get_current_user()
     if not user: return redirect(url_for('home'))
+
+    # 檢查是否有待處理的警告
+    show_warning = False
+    if user.get('warning_pending'):
+        show_warning = True
+        database.clear_warning_pending(user['id']) # 清除標記，確保只跳一次
     return render_template('index.html', user=user)
 
 @app.route('/game/<game_name>')
@@ -250,6 +256,15 @@ def admin_details(uid):
         organized[r['game_name']].append({'score':r['score'], 'date':r['timestamp'].split(' ')[0]})
     return jsonify({'status':'success', 'username':target['username'], 'avatar':target['avatar'], 'scores':organized})
 
+# 新增管理員發送警告的 API
+@app.route('/admin/warn_user/<int:uid>', methods=['POST'])
+def admin_warn(uid):
+    u = get_current_user()
+    if not u or not dict(u).get('is_admin', 0): return jsonify({'status':'error'}), 403
+    
+    database.set_warning_pending(uid)
+    return jsonify({'status':'success'})
+
 # ==========================================
 # 🚀 API 路由 (含防作弊檢查)
 # ==========================================
@@ -288,6 +303,10 @@ def submit_score():
 
     if not is_valid:
         print(f"🚫 CHEAT BLOCKED: User {session['username']} | {game_name} | Score: {score} | Time: {duration:.2f}s | Reason: {reason}")
+        
+        # 🔥 新增這行：自動標記為嫌疑犯
+        database.mark_user_suspect(session['user_id'])
+
         return jsonify({'status': 'error', 'message': f'偵測到異常數據: {reason}'}), 400
 
     database.insert_score(session['user_id'], game_name, score)
