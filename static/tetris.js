@@ -252,7 +252,13 @@
         const newLevel = Math.floor(lines / 10);
         if(newLevel > level) {
             level = newLevel;
-            dropInterval = Math.max(70, 1000 - (level * 100)); 
+            // More aggressive speed curve
+            // Level 0: 1000ms
+            // Level 1: 800ms
+            // Level 2: 650ms
+            // ...
+            // Formula: 1000 * (0.85 ^ level)
+            dropInterval = Math.max(50, 1000 * Math.pow(0.85, level)); 
             showFloatingText("LEVEL UP!", 4, 10, '#0DFF72', '2rem');
         }
 
