@@ -545,9 +545,9 @@
             if (collide(arena, player)) player.pos.x--;
         } else if (key === 'arrowdown') { // Soft Drop
             playerSoftDrop();
-        } else if (key === 'a') { // Rotate Left
+        } else if (key === 'z') { // Rotate Left
             playerRotate(-1);
-        } else if (key === 'd') { // Rotate Right
+        } else if (key === 'x') { // Rotate Right
             playerRotate(1);
         } else if (key === ' ') { // Hard Drop
             playerHardDrop();
