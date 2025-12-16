@@ -227,7 +227,8 @@ def profile():
 def register():
     if request.method == 'POST':
         if database.create_user(request.form['username'], request.form['password']):
-            return redirect(url_for('home'))
+            # 註冊成功：顯示成功訊息後回到登入畫面
+            return render_template('login.html', success_message="Account created successfully. Please log in.")
         return render_template('register.html', error="User exists")
     return render_template('register.html')
 

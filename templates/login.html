@@ -31,5 +31,12 @@
             New player? <a href="/register" style="color: var(--accent); text-decoration: none; font-weight: bold;">Create Account</a>
         </div>
     </div>
+
+    {% if success_message %}
+    <script>
+        // 顯示帳號建立成功的英文提示
+        alert("{{ success_message }}");
+    </script>
+    {% endif %}
 </body>
 </html>
