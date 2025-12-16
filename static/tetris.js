@@ -3,6 +3,7 @@
     const context = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
     const linesEl = document.getElementById('lines');
+    const levelEl = document.getElementById('level'); // New
     const startBtn = document.getElementById('startBtn');
     
     // Side panels
@@ -13,6 +14,7 @@
     const comboContainer = document.getElementById('comboContainer');
     const comboCountEl = document.getElementById('comboCount');
     const floatingTextContainer = document.getElementById('floating-text-container');
+    const gameContainer = document.querySelector('.game-container'); // For shake effect
 
     context.scale(20, 20);
     nextCtx.scale(20, 20);
@@ -22,22 +24,30 @@
     const finalScoreEl = document.getElementById("finalScore");
     const uploadStatusEl = document.getElementById("uploadStatus");
 
+    // Game State
     let pieceCount = 0;
     let score = 0;
     let lines = 0;
+    let level = 0;
     let gameOver = false;
     let isGameRunning = false;
     let requestID = null;
     let pieceBag = [];
     let gameHash = 0;
     
-    // New game state variables
     let nextPieceType = null;
     let holdPieceType = null;
     let canHold = true;
     let combo = -1;
+    
+    // Particle System
+    let particles = [];
 
-    function updateHash(val) { gameHash = (gameHash + val * 37) % 999999; }
+    // Hashing for Anti-Cheat
+    // Hash now includes Level factor
+    function updateHash(val) { 
+        gameHash = (gameHash + val * (level + 1) * 37 + 1234) % 999999; 
+    }
 
     function createMatrix(w, h) {
         const matrix = [];
@@ -76,6 +86,73 @@
 
     const colors = [null, '#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF'];
 
+    // === Particle System ===
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            // Random velocity
+            this.vx = (Math.random() - 0.5) * 10;
+            this.vy = (Math.random() - 0.5) * 10 - 5; // Upward bias
+            this.life = 1.0; // Alpha
+            this.decay = Math.random() * 0.03 + 0.02;
+            this.gravity = 0.5;
+        }
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vy += this.gravity;
+            this.life -= this.decay;
+        }
+
+        draw(ctx) {
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = Math.max(0, this.life);
+            ctx.fillRect(this.x, this.y, 10, 10); // 10x10 px pixels relative to unscaled canvas if drawn carefully, but here we use scaled context?
+            // Wait, main context is scaled 20x20. 
+            // If I draw at x, y in scaled context, 1 unit = 20px.
+            // My particle x,y should be in grid units or pixel units?
+            // Let's use grid units for position, but draw small rects.
+            // 10px is 0.5 grid units.
+            ctx.fillRect(this.x, this.y, 0.5, 0.5);
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    function spawnParticles(y, row) {
+        // y is row index. row is array of color indices.
+        row.forEach((value, x) => {
+            if(value !== 0) {
+                // Spawn a few particles per block
+                for(let i=0; i<3; i++) {
+                    particles.push(new Particle(x, y, colors[value]));
+                }
+            }
+        });
+    }
+
+    function updateParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update();
+            if (particles[i].life <= 0) {
+                particles.splice(i, 1);
+            }
+        }
+    }
+
+    function drawParticles() {
+        particles.forEach(p => p.draw(context));
+    }
+
+    // === Screen Shake ===
+    function shakeScreen() {
+        gameContainer.classList.remove('shake');
+        void gameContainer.offsetWidth; // Trigger reflow
+        gameContainer.classList.add('shake');
+    }
+
     function drawMatrix(matrix, offset, isGhost = false) {
         matrix.forEach((row, y) => {
             row.forEach((value, x) => {
@@ -98,16 +175,11 @@
         });
     }
 
-    // New helper for side panels
     function drawPreview(ctx, type) {
-        ctx.clearRect(0, 0, ctx.canvas.width / 20, ctx.canvas.height / 20); // Clear based on scale
-        
+        ctx.clearRect(0, 0, ctx.canvas.width / 20, ctx.canvas.height / 20);
         if (!type) return;
         
         const matrix = createPiece(type);
-        // Center the piece. Canvas is 100x100 (5x5 blocks). Pieces are 3x3 or 4x4 or 2x2.
-        // matrix size: 2, 3, 4.
-        // center: (5 - w) / 2
         const w = matrix[0].length;
         const h = matrix.length;
         const offsetX = (5 - w) / 2;
@@ -130,8 +202,7 @@
         drawPreview(nextCtx, nextPieceType);
         drawPreview(holdCtx, holdPieceType);
         
-        // Update Combo Display
-        if (combo > 0) {
+        if (combo > 1) { // Only show combo if > 1 (Nintendo style usually doesn't emphasize combo as much but arcade does)
             comboCountEl.innerText = combo;
             comboContainer.style.opacity = "1";
         } else {
@@ -139,16 +210,14 @@
         }
     }
 
-    function showFloatingText(text, x, y, color = '#fff') {
+    function showFloatingText(text, x, y, color = '#fff', fontSize = '1.2rem') {
         const el = document.createElement('div');
         el.className = 'floating-text';
         el.textContent = text;
-        // Adjust position relative to the container/canvas
-        // x, y are grid coordinates. 1 unit = 20px.
-        // But the container is absolute over the canvas.
         el.style.left = (x * 20) + 'px'; 
         el.style.top = (y * 20) + 'px';
         el.style.color = color;
+        el.style.fontSize = fontSize;
         floatingTextContainer.appendChild(el);
         setTimeout(() => el.remove(), 1000);
     }
@@ -159,7 +228,6 @@
                 if (value !== 0) arena[y + player.pos.y][x + player.pos.x] = value;
             });
         });
-        updateHash(player.score || 1);
     }
 
     function collide(arena, player) {
@@ -173,51 +241,85 @@
         return false;
     }
 
+    // === SCORING LOGIC ===
     function arenaSweep() {
         let rowCount = 0;
-        
-        outer: for (let y = arena.length -1; y > 0; --y) {
+        let rowsToClear = [];
+
+        // Identify rows
+        for (let y = arena.length - 1; y > 0; --y) {
+            let full = true;
             for (let x = 0; x < arena[y].length; ++x) {
-                if (arena[y][x] === 0) continue outer;
+                if (arena[y][x] === 0) {
+                    full = false;
+                    break;
+                }
             }
-            const row = arena.splice(y, 1)[0].fill(0);
-            arena.unshift(row);
-            ++y;
-            rowCount++;
+            if (full) {
+                rowsToClear.push(y);
+            }
         }
+
+        rowCount = rowsToClear.length;
 
         if (rowCount > 0) {
+            // Fancy Effects
+            shakeScreen();
+            
+            // Spawn particles & Clear rows
+            rowsToClear.forEach(y => {
+                const row = arena.splice(y, 1)[0];
+                spawnParticles(y, row); // Spawn particles at that row position (approx)
+                arena.unshift(new Array(arena[0].length).fill(0));
+            });
+            
+            // Score Calculation (Nintendo)
+            // Single: 40 * (n + 1)
+            // Double: 100 * (n + 1)
+            // Triple: 300 * (n + 1)
+            // Tetris: 1200 * (n + 1)
+            const baseScores = [0, 40, 100, 300, 1200];
+            let points = baseScores[rowCount] * (level + 1);
+            
+            // Combo bonus (Arcade extension, not strict Nintendo)
+            // 50 * combo * level
+            if(combo < 0) combo = 0;
             combo++;
-            lines += rowCount;
             
-            // Standard Tetris scoring (Nintendo)
-            // 1: 40, 2: 100, 3: 300, 4: 1200
-            const lineScores = [0, 40, 100, 300, 1200];
-            let points = lineScores[rowCount] || (rowCount * 100);
-            
-            // Combo bonus
-            if (combo > 0) {
-                points += 50 * combo;
-            }
+            if (combo > 0) points += 50 * combo * (level + 1);
 
             score += points;
+            lines += rowCount;
             
-            // Floating text effect
+            // Level Up Logic: Every 10 lines
+            const newLevel = Math.floor(lines / 10);
+            if(newLevel > level) {
+                level = newLevel;
+                // Increase speed (decrease interval)
+                // Curve: (0.8-((level-1)*0.007))^(level-1) approx or simple table
+                // Simple physics: dropInterval = max(100, 1000 - level * 100)
+                dropInterval = Math.max(70, 1000 - (level * 100)); 
+                showFloatingText("LEVEL UP!", 4, 10, '#0DFF72', '2rem');
+            }
+
+            // Text Effect
             let text = `+${points}`;
-            if (combo > 0) text += ` (Combo ${combo})`;
-            if (rowCount === 4) text = "TETRIS! " + text;
+            if (rowCount === 4) {
+                text = "TETRIS! " + text;
+                showFloatingText(text, 2, 8, '#F538FF', '1.5rem');
+            } else {
+                showFloatingText(text, 4, 8, '#FFE138');
+            }
             
-            // Show roughly in the middle top or where action happened
-            // Since we removed lines, just show it at top for visibility
-            showFloatingText(text, 2, 5, '#FFE138'); 
-            updateHash(score);
+            updateHash(points);
         } else {
-            combo = -1; // Reset combo if no lines cleared
+            combo = -1;
         }
-        
+
         scoreEl.innerText = score;
         linesEl.innerText = lines;
-        updateSidePanels(); // Update combo display
+        levelEl.innerText = level;
+        updateSidePanels();
     }
 
     function getGhostPos() {
@@ -229,11 +331,16 @@
 
     function draw() {
         context.fillStyle = '#000';
-        context.fillRect(0, 0, canvas.width / 20, canvas.height / 20); // Clear based on scale
+        context.fillRect(0, 0, canvas.width / 20, canvas.height / 20); // Clear
+
         drawMatrix(arena, {x: 0, y: 0});
+        
         const ghostPos = getGhostPos();
         drawMatrix(player.matrix, ghostPos, true);
+        
         drawMatrix(player.matrix, player.pos);
+        
+        drawParticles();
     }
 
     function playerRotate(dir) {
@@ -269,9 +376,13 @@
         if (!isGameRunning) return;
         const deltaTime = time - lastTime;
         lastTime = time;
+        
         dropCounter += deltaTime;
         if (dropCounter > dropInterval) playerDrop();
+        
+        updateParticles();
         draw();
+        
         requestID = requestAnimationFrame(update);
     }
 
@@ -280,27 +391,62 @@
         if (collide(arena, player)) {
             player.pos.y--;
             merge(arena, player);
-            arenaSweep(); // Check for lines
+            arenaSweep();
             playerReset();
-            updateScore();
+            // No drop score for passive drop
         }
         dropCounter = 0;
     }
 
+    // Soft Drop (Manual Down)
+    function playerSoftDrop() {
+        player.pos.y++;
+        if (collide(arena, player)) {
+            player.pos.y--;
+            merge(arena, player);
+            arenaSweep();
+            playerReset();
+        } else {
+            // Soft drop score: 1 point per cell
+            score += 1;
+            scoreEl.innerText = score;
+            updateHash(1);
+        }
+        dropCounter = 0;
+    }
+
+    // Hard Drop
     function playerHardDrop() {
-        while (!collide(arena, player)) { player.pos.y++; }
+        let cells = 0;
+        while (!collide(arena, player)) { 
+            player.pos.y++; 
+            cells++;
+        }
         player.pos.y--; 
+        cells--; // Adjust count
+        
         merge(arena, player);
-        arenaSweep(); // Check for lines
+        
+        // Hard drop score: 2 points per cell
+        if (cells > 0) {
+            const points = cells * 2;
+            score += points;
+            scoreEl.innerText = score;
+            updateHash(points);
+        }
+
+        arenaSweep(); 
         playerReset();
-        updateScore();
         dropCounter = 0; 
+        
+        // Shake on hard drop
+        shakeScreen();
     }
 
     function playerReset() {
         if (nextPieceType === null) nextPieceType = getNextPieceType();
         
-        player.type = nextPieceType; // Store type for hold
+        player.type = nextPieceType; 
         player.matrix = createPiece(nextPieceType);
         nextPieceType = getNextPieceType(); 
         
@@ -321,9 +467,8 @@
         
         if (holdPieceType === null) {
             holdPieceType = currentType;
-            playerReset(); // Spawn next piece
+            playerReset(); 
         } else {
-            // Swap
             const temp = holdPieceType;
             holdPieceType = currentType;
             
@@ -333,11 +478,9 @@
             player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
         }
         
-        canHold = false; // Disable hold until next drop
+        canHold = false;
         updateSidePanels();
     }
-
-    function updateScore() { scoreEl.innerText = score; }
 
     function startGame() {
         if (isGameRunning) return;
@@ -349,15 +492,20 @@
         arena.forEach(row => row.fill(0));
         score = 0;
         lines = 0;
+        level = 0;
         pieceBag = [];
         pieceCount = 0;
+        particles = [];
+        
         scoreEl.innerText = 0;
         linesEl.innerText = 0;
+        levelEl.innerText = 0;
+        
         gameHash = 0;
         gameOver = false;
         isGameRunning = true;
+        dropInterval = 1000;
         
-        // Reset specialized states
         nextPieceType = getNextPieceType();
         holdPieceType = null;
         canHold = true;
@@ -392,6 +540,8 @@
                 game_name: 'tetris', 
                 score: score, 
                 pieces: pieceCount, 
+                lines: lines, // Send lines
+                level: level, // Send level
                 hash: gameHash
             })
         })
@@ -401,7 +551,7 @@
                 uploadStatusEl.textContent = "✅ Score Saved!";
                 uploadStatusEl.style.color = "#4ade80";
             } else {
-                uploadStatusEl.textContent = "❌ Save Failed";
+                uploadStatusEl.textContent = "❌ Save Failed: " + (data.message || "Unknown");
             }
         });
     }
@@ -414,7 +564,7 @@
 
         const key = event.key.toLowerCase();
         
-        // Prevent default scrolling for arrow keys and space
+        // Prevent scrolling
         if(["arrowup","arrowdown","arrowleft","arrowright"," "].indexOf(key) > -1) {
             event.preventDefault();
         }
@@ -425,24 +575,22 @@
         } else if (key === 'arrowright') { // Right
             player.pos.x++;
             if (collide(arena, player)) player.pos.x--;
-        } else if (key === 'arrowdown') { // Drop (Soft)
-            playerDrop();
+        } else if (key === 'arrowdown') { // Soft Drop
+            playerSoftDrop();
         } else if (key === 'a') { // Rotate Left
             playerRotate(-1);
         } else if (key === 'd') { // Rotate Right
             playerRotate(1);
-        } else if (key === ' ') { // Hard Drop (Space)
+        } else if (key === ' ') { // Hard Drop
             playerHardDrop();
-        } else if (key === 'c') { // C - Hold
+        } else if (key === 'c') { // Hold
             performHold();
         }
     });
 
-    // 初始畫面
+    // Initial draw
     context.fillStyle = '#000';
-    context.fillRect(0, 0, canvas.width / 20, canvas.height / 20); // Clear based on scale
-    
-    // Initial draw of panels (empty)
+    context.fillRect(0, 0, canvas.width / 20, canvas.height / 20); 
     drawPreview(nextCtx, null);
     drawPreview(holdCtx, null);
 

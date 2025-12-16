@@ -94,15 +94,32 @@ def validate_game_logic(game_name, score, data, duration):
     # === 🧱 Tetris 檢測 ===
     elif game_name == 'tetris':
         pieces = int(data.get('pieces', 0))
-        # 物理極限：人類極限最快約 0.3~0.5 秒放一個方塊 (考慮移動和鎖定延遲)
-        # 設寬鬆點：每秒最多 3 個方塊
-        if pieces > (duration * 3) * TOLERANCE + 5:
+        level = int(data.get('level', 0))
+        lines = int(data.get('lines', 0))
+
+        # 1. 物理極限：每秒最多 3-4 個方塊 (考慮動畫與延遲)
+        if pieces > (duration * 4) * TOLERANCE + 10:
              return False, f"Auto-dropper: {pieces} pieces in {duration:.2f}s"
-        # 邏輯檢測：方塊數過少
-        # 每個方塊最多消 4 行 (40分)，甚至更少。如果分數很高但方塊很少，就是作弊。
-        # 平均每個方塊就算完美操作也難以超過 100 分 (連擊除外，但這是一個保守估計)
-        if score > 500 and score / (pieces + 1) > 500:
-             return False, f"Score mismatch: {score} points with {pieces} pieces"
+        
+        # 2. 邏輯檢測：方塊數與消行數的關係
+        # 最極端情況：全都是 I 型方塊，每 1 個方塊消 4 行 (不可能連續發生，但作為極限值)
+        # 實際上平均約 2.5 個方塊消 1 行 (高手) 到 10 個方塊消 0 行 (新手)
+        if lines > pieces * 4: # 絕對不可能發生的情況
+            return False, f"Impossible efficiency: {lines} lines with {pieces} pieces"
+
+        # 3. 分數檢測 (基於等級的寬鬆上限)
+        # Nintendo Scoring: 
+        # Single: 40*(L+1), Double: 100*(L+1), Triple: 300*(L+1), Tetris: 1200*(L+1)
+        # 假設全部都是 Tetris (最高分效率)，且都在當前最高等級完成
+        # Max Score ≈ (Lines / 4) * 1200 * (Level + 1)
+        # 加上 Soft/Hard Drop 的分數 (每個方塊最多 20~40 分)
+        
+        max_line_score = (lines / 1) * 300 * (level + 1) * 1.5 # 寬容係數 1.5
+        max_drop_score = pieces * 40 # 假設每個方塊都從頂端掉到底
+        max_total = max_line_score + max_drop_score + 2000 # 基礎寬容值
+        
+        if score > max_total:
+             return False, f"Score mismatch: {score} exceeds limit {max_total:.0f} (Lv.{level})"
 
     # === 🔨 Whac-A-Mole 檢測 ===
     elif game_name == 'whac':
