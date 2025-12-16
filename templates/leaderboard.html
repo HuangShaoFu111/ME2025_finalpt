@@ -71,6 +71,11 @@
         .player-info { flex-grow: 1; display: flex; align-items: center; gap: 15px; }
         .player-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); }
         .player-name { font-weight: 600; color: white; font-size: 1.1rem; }
+        .avatar-frame { position: relative; }
+        .avatar-frame img { transition: 0.3s; }
+        .frame-neon-blue img { box-shadow: 0 0 10px rgba(34,211,238,0.8); border-color: #22d3ee; }
+        .frame-gold-glow img { box-shadow: 0 0 12px rgba(250,204,21,0.8); border-color: #facc15; }
+        .frame-cyber-pink img { box-shadow: 0 0 12px rgba(236,72,153,0.8); border-color: #ec4899; }
         
         /* 🏆 新增：稱號樣式 */
         .player-title {
@@ -188,12 +193,16 @@
                             titleHtml = `<span class="player-title">${row.equipped_title}</span>`;
                         }
 
+                        const frameClass = row.equipped_frame ? `frame-${row.equipped_frame}` : '';
+
                         const item = document.createElement("div");
                         item.className = `rank-item ${rankClass}`;
                         item.innerHTML = `
                             <div class="player-info">
                                 <span class="rank-num">#${index + 1}</span>
-                                <img src="${avatarSrc}" class="player-avatar">
+                                <div class="avatar-frame ${frameClass}">
+                                    <img src="${avatarSrc}" class="player-avatar">
+                                </div>
                                 <div style="display: flex; flex-direction: column; justify-content: center;">
                                     <div>
                                         <span class="player-name">${row.username}</span>

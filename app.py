@@ -34,13 +34,29 @@ SHOP_ITEMS = {
     "title_hacker":   {"id": "title_hacker",   "type": "title",  "name": "💻 Hacker",       "price": 5000, "value": "💻 Hacker"},
     "title_god":      {"id": "title_god",      "type": "title",  "name": "👑 Arcade God",   "price": 10000,"value": "👑 Arcade God"},
     "title_rich":     {"id": "title_rich",     "type": "title",  "name": "💎 Millionaire",  "price": 50000,"value": "💎 Millionaire"},
-    
-    "avatar_pixel_red": {"id": "avatar_pixel_red", "type": "avatar", "name": "👾 Pixel Warrior", "price": 1500, "value": "https://api.dicebear.com/9.x/pixel-art/svg?seed=RedFighter&backgroundColor=b6e3f4"},
-    "avatar_pixel_king": {"id": "avatar_pixel_king", "type": "avatar", "name": "🗡️ Pixel Lord", "price": 2500, "value": "https://api.dicebear.com/9.x/pixel-art/svg?seed=KingArthur&backgroundColor=ffdfbf"},
-    "avatar_robot_scout": {"id": "avatar_robot_scout", "type": "avatar", "name": "🤖 Mecha Scout", "price": 3000, "value": "https://api.dicebear.com/9.x/bottts/svg?seed=Scout01&backgroundColor=c0aede"},
-    "avatar_robot_prime": {"id": "avatar_robot_prime", "type": "avatar", "name": "🛡️ Guardian Bot", "price": 4500, "value": "https://api.dicebear.com/9.x/bottts/svg?seed=Optimus&backgroundColor=ffdfbf"},
-    "avatar_space_ranger": {"id": "avatar_space_ranger", "type": "avatar", "name": "🚀 Galactic Rogue", "price": 6000, "value": "https://api.dicebear.com/9.x/adventurer/svg?seed=Skywalker&backgroundColor=b6e3f4"},
-    "avatar_void_spirit": {"id": "avatar_void_spirit", "type": "avatar", "name": "👻 Void Spirit", "price": 10000, "value": "https://api.dicebear.com/9.x/identicon/svg?seed=VoidMaster&backgroundColor=000000"},
+
+    # 頭像周邊：框架
+    "frame_neon_blue": {"id": "frame_neon_blue", "type": "avatar_frame", "name": "🟦 Neon Frame", "price": 1200, "value": "frame-neon-blue"},
+    "frame_gold_glow": {"id": "frame_gold_glow", "type": "avatar_frame", "name": "✨ Gold Glow", "price": 2400, "value": "frame-gold-glow"},
+    "frame_cyber_pink": {"id": "frame_cyber_pink", "type": "avatar_frame", "name": "🌸 Cyber Pink", "price": 1800, "value": "frame-cyber-pink"},
+
+    # 徽章改併入稱號系統（同 title）
+    "badge_speedrunner": {"id": "badge_speedrunner", "type": "title", "name": "⚡ Speedrunner", "price": 900, "value": "⚡ Speedrunner"},
+    "badge_perfection": {"id": "badge_perfection", "type": "title", "name": "🎯 Perfect Clear", "price": 1500, "value": "🎯 Perfect Clear"},
+    "badge_collector": {"id": "badge_collector", "type": "title", "name": "📦 Collector", "price": 700, "value": "📦 Collector"},
+
+    # 大廳特效
+    "effect_confetti": {"id": "effect_confetti", "type": "lobby_effect", "name": "🎉 Confetti Burst", "price": 2000, "value": "effect-confetti"},
+    "effect_matrix": {"id": "effect_matrix", "type": "lobby_effect", "name": "🟢 Matrix Rain", "price": 2600, "value": "effect-matrix"},
+    "effect_nebula": {"id": "effect_nebula", "type": "lobby_effect", "name": "🌌 Nebula Aura", "price": 3200, "value": "effect-nebula"},
+}
+
+# 預設快速套用的頭像（免費）
+PRESET_AVATARS = {
+    "pixel_blaze": "https://api.dicebear.com/9.x/pixel-art/svg?seed=Blaze&backgroundColor=b6e3f4",
+    "pixel_shadow": "https://api.dicebear.com/9.x/pixel-art/svg?seed=Shadow&backgroundColor=2b2839",
+    "bot_scout": "https://api.dicebear.com/9.x/bottts/svg?seed=Scout&backgroundColor=c0aede",
+    "adventurer_nova": "https://api.dicebear.com/9.x/adventurer/svg?seed=Nova&backgroundColor=ffdfbf",
 }
 
 def get_current_user():
@@ -217,6 +233,14 @@ def profile():
                 f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 database.update_avatar(user['id'], fname)
                 success = "Avatar updated!"
+        elif action == 'apply_preset':
+            preset_key = request.form.get('preset')
+            preset_url = PRESET_AVATARS.get(preset_key)
+            if preset_url:
+                database.update_avatar(user['id'], preset_url)
+                success = "Preset avatar applied!"
+            else:
+                error = "Invalid preset."
         elif action == 'delete_account':
             database.delete_user(user['id'])
             session.clear()
@@ -387,6 +411,8 @@ def api_buy():
     
     item = SHOP_ITEMS.get(item_id)
     if not item: return jsonify({'status': 'error', 'message': 'Invalid item'}), 400
+    if item['type'] == 'avatar':
+        return jsonify({'status': 'error', 'message': 'Avatar purchases are disabled; please upload your own avatar in profile settings.'}), 400
     
     success, msg = database.purchase_item(session['user_id'], item_id, item['type'], item['price'])
     if success:
@@ -400,12 +426,20 @@ def api_equip():
     data = request.get_json()
     item_id = data.get('item_id')
     
-    if item_id == 'unequip_title':
-        database.equip_item(session['user_id'], 'title', '')
+    unequip_map = {
+        'unequip_title': ('title', ''),
+        'unequip_frame': ('avatar_frame', ''),
+        'unequip_effect': ('lobby_effect', ''),
+    }
+    if item_id in unequip_map:
+        item_type, value = unequip_map[item_id]
+        database.equip_item(session['user_id'], item_type, value)
         return jsonify({'status': 'success'})
         
     item = SHOP_ITEMS.get(item_id)
     if not item: return jsonify({'status': 'error', 'message': 'Invalid item'}), 400
+    if item['type'] == 'avatar':
+        return jsonify({'status': 'error', 'message': 'Avatar equips are disabled; please upload your own avatar in profile settings.'}), 400
     
     owned = database.get_user_items(session['user_id'])
     if item_id not in owned:

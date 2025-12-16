@@ -107,6 +107,66 @@ h1 {
     text-shadow: 0 0 5px white;
 }
 
+/* --- 大廳特效預覽動畫 --- */
+.effect-preview {
+    position: relative;
+    overflow: hidden;
+}
+.effect-preview::before,
+.effect-preview::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.effect-preview.effect-confetti::before {
+    background-image:
+        radial-gradient(circle at 20% 20%, rgba(251,191,36,0.9) 0 6px, transparent 7px),
+        radial-gradient(circle at 70% 40%, rgba(59,130,246,0.9) 0 6px, transparent 7px),
+        radial-gradient(circle at 40% 70%, rgba(244,114,182,0.9) 0 6px, transparent 7px),
+        radial-gradient(circle at 85% 80%, rgba(16,185,129,0.9) 0 6px, transparent 7px);
+    background-size: 120px 120px;
+    animation: confetti-fall 2.8s linear infinite;
+    opacity: 0.9;
+}
+.effect-preview.effect-matrix::before {
+    background: repeating-linear-gradient(
+        90deg,
+        rgba(34,197,94,0.35) 0px,
+        rgba(34,197,94,0.35) 2px,
+        transparent 2px,
+        transparent 8px
+    );
+    animation: matrix-rain 1.8s linear infinite;
+    opacity: 0.7;
+}
+.effect-preview.effect-matrix::after {
+    background: radial-gradient(circle at 20% 20%, rgba(74,222,128,0.2), transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(34,197,94,0.2), transparent 45%);
+}
+.effect-preview.effect-nebula::before {
+    background: radial-gradient(circle at 30% 30%, rgba(94,92,255,0.5), transparent 40%),
+                radial-gradient(circle at 70% 60%, rgba(244,114,182,0.45), transparent 45%),
+                radial-gradient(circle at 20% 80%, rgba(56,189,248,0.35), transparent 50%);
+    filter: blur(1px);
+    animation: nebula-pulse 6s ease-in-out infinite;
+    opacity: 0.8;
+}
+
+@keyframes confetti-fall {
+    0% { transform: translateY(-20%); }
+    100% { transform: translateY(20%); }
+}
+@keyframes matrix-rain {
+    from { background-position: 0 -40px; }
+    to   { background-position: 0 40px; }
+}
+@keyframes nebula-pulse {
+    0% { transform: scale(1) translate(0,0); opacity: 0.7; }
+    50% { transform: scale(1.08) translate(-4px, 4px); opacity: 0.95; }
+    100% { transform: scale(1) translate(0,0); opacity: 0.7; }
+}
+
 /* ⭐ 新增：頭貼懸浮動畫 ⭐ */
 @keyframes float {
     0% { transform: translateY(0px); }

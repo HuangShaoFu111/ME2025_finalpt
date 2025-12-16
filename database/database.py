@@ -14,6 +14,14 @@ def get_db_connection():
     return conn
 
 
+def add_column_if_missing(cur, table, column_def):
+    """確保指定欄位存在，若缺少則以 column_def 新增"""
+    column_name = column_def.split()[0]
+    cols = [row[1] for row in cur.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column_name not in cols:
+        cur.execute(f"ALTER TABLE {table} ADD COLUMN {column_def}")
+
+
 def init_db():
     """初始化資料庫 (包含商店相關欄位)"""
     conn = get_db_connection()
@@ -29,10 +37,18 @@ def init_db():
             avatar TEXT DEFAULT 'default.png',
             is_admin INTEGER DEFAULT 0,
             spent_points INTEGER DEFAULT 0,
-            equipped_title TEXT DEFAULT ''
+            equipped_title TEXT DEFAULT '',
+            equipped_frame TEXT DEFAULT '',
+            equipped_badge TEXT DEFAULT '',
+            equipped_effect TEXT DEFAULT ''
         )
     '''
     )
+
+    # 若既有資料表缺少新欄位則補上
+    add_column_if_missing(c, 'users', "equipped_frame TEXT DEFAULT ''")
+    add_column_if_missing(c, 'users', "equipped_badge TEXT DEFAULT ''")
+    add_column_if_missing(c, 'users', "equipped_effect TEXT DEFAULT ''")
 
     c.execute(
         '''
@@ -227,7 +243,7 @@ def get_leaderboard(game_name):
     conn = get_db_connection()
     try:
         query = '''
-            SELECT u.username, u.avatar, u.equipped_title, s.score, s.timestamp
+            SELECT u.username, u.avatar, u.equipped_title, u.equipped_frame, u.equipped_effect, s.score, s.timestamp
             FROM scores s
             JOIN users u ON s.user_id = u.id
             WHERE s.game_name = ?
@@ -318,6 +334,9 @@ def get_user_items(user_id):
 
 
 def purchase_item(user_id, item_id, item_type, cost):
+    # Avatar 購買已禁用，改為使用檔案上傳
+    if item_type == 'avatar':
+        return False, 'Avatar purchases are disabled'
     wallet = get_wallet_info(user_id)
     if wallet['balance'] < cost:
         return False, 'Insufficient funds'
@@ -355,10 +374,25 @@ def equip_item(user_id, item_type, value):
                 (value, user_id),
             )
         elif item_type == 'avatar':
+            # Avatar 由上傳功能處理，不接受商店裝備
+            return False
+        elif item_type == 'avatar_frame':
             conn.execute(
-                'UPDATE users SET avatar = ? WHERE id = ?',
+                'UPDATE users SET equipped_frame = ? WHERE id = ?',
                 (value, user_id),
             )
+        elif item_type == 'badge':
+            conn.execute(
+                'UPDATE users SET equipped_badge = ? WHERE id = ?',
+                (value, user_id),
+            )
+        elif item_type == 'lobby_effect':
+            conn.execute(
+                'UPDATE users SET equipped_effect = ? WHERE id = ?',
+                (value, user_id),
+            )
+        else:
+            return False
         conn.commit()
         return True
     except Exception:
