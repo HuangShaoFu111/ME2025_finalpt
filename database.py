@@ -76,8 +76,7 @@ def create_user(username, password):
 def verify_user(username, password):
     """
     驗證登入帳號密碼。
-    - 若密碼欄位看起來是雜湊（pbkdf2:...），使用 check_password_hash。
-    - 否則視為「舊版明文密碼」，先比對明文；若成功，立刻升級為雜湊儲存。
+    自動支援 scrypt, pbkdf2 等多種雜湊格式，並向下相容明文密碼。
     """
     conn = get_db_connection()
     try:
@@ -85,12 +84,13 @@ def verify_user(username, password):
             'SELECT * FROM users WHERE username = ?',
             (username,),
         ).fetchone()
+        
         if not row:
             return None
 
         stored_pw = row['password']
 
-        # 統一轉成字串，避免舊資料是 INTEGER / 其他型別導致比較失敗
+        # 統一轉成字串，處理 bytes 或其他型別
         if stored_pw is None:
             return None
 
@@ -102,26 +102,35 @@ def verify_user(username, password):
         else:
             stored_pw_str = str(stored_pw)
 
-        # 新格式：Werkzeug 的 pbkdf2 雜湊（預設長這樣）
-        if stored_pw_str.startswith('pbkdf2:'):
+        # --- 修正開始 ---
+        
+        # 1. 優先嘗試標準雜湊驗證 (支援 scrypt, pbkdf2 等所有 werkzeug 格式)
+        try:
+            # check_password_hash 會自動識別開頭的演算法標籤
             if check_password_hash(stored_pw_str, password):
                 return row
-            return None
+        except ValueError:
+            # 如果 stored_pw_str 格式完全不對 (例如純明文)，這裡可能會報錯，我們忽略它繼續往下檢查
+            pass
 
-        # 舊格式：明文密碼，直接比對（含舊 INT 333 vs '333' 這種情況）
+        # 2. 舊格式：明文密碼，直接比對 (Legacy Support)
+        # 如果上面的雜湊驗證失敗或格式不符，檢查是否為舊的明文密碼
         if stored_pw_str == password:
-            # 登入成功，同步升級為雜湊密碼
+            # 登入成功，同步升級為雜湊密碼 (這會根據你當前安裝的 Werkzeug 版本產生 scrypt 或 pbkdf2)
             new_hash = generate_password_hash(password)
             conn.execute(
                 'UPDATE users SET password = ? WHERE id = ?',
                 (new_hash, row['id']),
             )
             conn.commit()
-            # 回傳一個帶有新密碼雜湊的 row（保持行為一致）
+            
+            # 重新抓取更新後的資料回傳
             return conn.execute(
                 'SELECT * FROM users WHERE id = ?',
                 (row['id'],),
             ).fetchone()
+            
+        # --- 修正結束 ---
 
         return None
     finally:
