@@ -191,6 +191,11 @@
                                 onclick="event.stopPropagation(); warnUser({{ u.id }}, '{{ u.username }}');">
                             <i class="fa-solid fa-envelope-circle-check"></i>
                         </button>
+                        <button class="btn-secondary" 
+                                title="Clear Suspect Flag"
+                                onclick="event.stopPropagation(); clearSuspect({{ u.id }}, '{{ u.username }}');">
+                            <i class="fa-solid fa-bug-slash"></i>
+                        </button>
                     {% endif %}
 
                     {% if u.id != user.id %}
@@ -287,6 +292,22 @@
                         alert("✅ Warning Sent!");
                     } else {
                         alert("Error: " + data.message);
+                    }
+                });
+            }
+        }
+
+        // 解除嫌疑標記
+        function clearSuspect(userId, username) {
+            if (confirm(`確定要解除使用者「${username}」的嫌疑標記嗎？`)) {
+                fetch(`/admin/clear_suspect/${userId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // 為了簡單確保畫面與資料一致，直接重整
+                        location.reload();
+                    } else {
+                        alert("Error: " + (data.message || "Failed to clear suspect flag"));
                     }
                 });
             }

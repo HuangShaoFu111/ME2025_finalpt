@@ -294,6 +294,13 @@ def mark_user_suspect(user_id):
     conn.commit()
     conn.close()
 
+def clear_user_suspect(user_id):
+    """清除使用者的嫌疑標記（並順便清除未讀警告）"""
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET is_suspect = 0, warning_pending = 0 WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+
 def set_warning_pending(user_id):
     """設定使用者下次登入需顯示警告"""
     conn = get_db_connection()

@@ -280,6 +280,17 @@ def admin_warn(uid):
     database.set_warning_pending(uid)
     return jsonify({'status':'success'})
 
+@app.route('/admin/clear_suspect/<int:uid>', methods=['POST'])
+def admin_clear_suspect(uid):
+    """管理員手動解除使用者嫌疑標記"""
+    u = get_current_user()
+    if not u or not dict(u).get('is_admin', 0):
+        return jsonify({'status': 'error'}), 403
+
+    # 可允許管理員幫任何人（包含自己）清除嫌疑
+    database.clear_user_suspect(uid)
+    return jsonify({'status': 'success'})
+
 # ==========================================
 # 🚀 API 路由 (含防作弊檢查)
 # ==========================================
