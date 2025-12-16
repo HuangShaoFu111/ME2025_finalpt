@@ -163,7 +163,9 @@
                     data-suspect="{% if u.is_suspect %}true{% else %}false{% endif %}"
                     onclick="openUserDetail({{ u.id }})">
                 
-                {% if u.avatar == 'default.png' %}
+                {% if u.avatar and u.avatar.startswith('http') %}
+                    <img src="{{ u.avatar }}" class="card-avatar">
+                {% elif u.avatar == 'default.png' or not u.avatar %}
                     <img src="https://ui-avatars.com/api/?name={{ u.username }}&background=0f172a&color=fff" class="card-avatar">
                 {% else %}
                     <img src="{{ url_for('static', filename='uploads/' + u.avatar) }}" class="card-avatar">
@@ -346,7 +348,9 @@
                         currentUsername = data.username;
                         // 設定頭像與名稱
                         modalUsername.innerText = data.username;
-                        if(data.avatar === 'default.png') {
+                        if (data.avatar && data.avatar.startsWith('http')) {
+                            modalAvatar.src = data.avatar;
+                        } else if (data.avatar === 'default.png' || !data.avatar) {
                             modalAvatar.src = `https://ui-avatars.com/api/?name=${data.username}&background=0f172a&color=fff`;
                         } else {
                             modalAvatar.src = `/static/uploads/${data.avatar}`;
