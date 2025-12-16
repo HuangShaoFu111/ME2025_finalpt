@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from werkzeug.security import generate_password_hash, check_password_hash
 
 DB_NAME = './arcade.db' 
 
@@ -53,12 +54,18 @@ def init_db():
 
 # --- 使用者相關 ---
 def create_user(username, password):
+    """建立使用者帳號，密碼以雜湊方式儲存"""
     conn = get_db_connection()
     try:
-        conn.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
+        password_hash = generate_password_hash(password)
+        conn.execute(
+            'INSERT INTO users (username, password) VALUES (?, ?)',
+            (username, password_hash),
+        )
         conn.commit()
         return True
     except sqlite3.IntegrityError:
+        # 使用者名稱重複
         return False
     except Exception:
         conn.rollback()
@@ -67,9 +74,44 @@ def create_user(username, password):
         conn.close()
 
 def verify_user(username, password):
+    """
+    驗證登入帳號密碼。
+    - 若密碼欄位看起來是雜湊（pbkdf2:...），使用 check_password_hash。
+    - 否則視為「舊版明文密碼」，先比對明文；若成功，立刻升級為雜湊儲存。
+    """
     conn = get_db_connection()
     try:
-        return conn.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password)).fetchone()
+        row = conn.execute(
+            'SELECT * FROM users WHERE username = ?',
+            (username,),
+        ).fetchone()
+        if not row:
+            return None
+
+        stored_pw = row['password']
+
+        # 新格式：Werkzeug 的 pbkdf2 雜湊（預設長這樣）
+        if isinstance(stored_pw, str) and stored_pw.startswith('pbkdf2:'):
+            if check_password_hash(stored_pw, password):
+                return row
+            return None
+
+        # 舊格式：明文密碼，直接比對
+        if stored_pw == password:
+            # 登入成功，同步升級為雜湊密碼
+            new_hash = generate_password_hash(password)
+            conn.execute(
+                'UPDATE users SET password = ? WHERE id = ?',
+                (new_hash, row['id']),
+            )
+            conn.commit()
+            # 回傳一個帶有新密碼雜湊的 row（保持行為一致）
+            return conn.execute(
+                'SELECT * FROM users WHERE id = ?',
+                (row['id'],),
+            ).fetchone()
+
+        return None
     finally:
         conn.close()
 

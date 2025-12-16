@@ -5,7 +5,9 @@ from werkzeug.utils import secure_filename
 import database
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'  # 請務必改為真實的隨機密鑰
+# 建議在實際部署時改用環境變數提供隨機且保密的金鑰：
+#   set FLASK_SECRET_KEY=隨機字串
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-change-me')
 
 # 設定圖片上傳路徑
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
@@ -15,6 +17,14 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # 初始化 DB
 database.init_db()
+
+# ==========================================
+# 🛡️ 簡單送分數頻率限制（防止洗分 / 暴力打 API）
+# 單機 / 小專案可用記憶體內 dict，正式環境建議改用 Redis 等集中儲存
+# ==========================================
+RATE_LIMIT_WINDOW = 60           # 秒數：一個時間窗
+RATE_LIMIT_MAX_SUBMITS = 30      # 每個使用者在一個時間窗內最多送幾次分數
+_score_submit_log = {}           # user_id -> [timestamp, ...]
 
 # --- 🛍️ 創意商店物品設定 ---
 SHOP_ITEMS = {
@@ -285,19 +295,43 @@ def start_game():
 
 @app.route('/api/submit_score', methods=['POST'])
 def submit_score():
-    if 'user_id' not in session: return jsonify({'status': 'error', 'message': '未登入'}), 401
-    if 'game_start_time' not in session: return jsonify({'status': 'error'}), 400
-    
-    data = request.get_json()
-    score = int(data.get('score', 0))
+    # 1) 基本身分 / 遊戲狀態檢查
+    if 'user_id' not in session:
+        return jsonify({'status': 'error', 'message': '未登入'}), 401
+    if 'game_start_time' not in session:
+        return jsonify({'status': 'error', 'message': '遊戲狀態失效，請重新開始'}), 400
+    if not request.is_json:
+        return jsonify({'status': 'error', 'message': '格式錯誤，必須為 JSON'}), 400
+
+    user_id = session['user_id']
+
+    # 2) 簡單頻率限制：同一 user 在 60 秒內最多送 30 次
+    now_ts = time.time()
+    history = _score_submit_log.get(user_id, [])
+    history = [t for t in history if now_ts - t < RATE_LIMIT_WINDOW]
+    if len(history) >= RATE_LIMIT_MAX_SUBMITS:
+        _score_submit_log[user_id] = history
+        return jsonify({'status': 'error', 'message': '送分數過於頻繁，請稍後再試'}), 429
+    history.append(now_ts)
+    _score_submit_log[user_id] = history
+
+    data = request.get_json(silent=True) or {}
+    try:
+        score = int(data.get('score', 0))
+    except (TypeError, ValueError):
+        return jsonify({'status': 'error', 'message': '分數格式錯誤'}), 400
+
     game_name = data.get('game_name')
+    if not isinstance(game_name, str):
+        return jsonify({'status': 'error', 'message': '遊戲名稱格式錯誤'}), 400
     
     # 計算真實遊玩時間
     start_time = session.get('game_start_time')
-    current_time = time.time()
+    current_time = now_ts
     duration = current_time - start_time
     
-    if session.get('current_game') != game_name: return jsonify({'status': 'error'}), 400
+    if session.get('current_game') != game_name:
+        return jsonify({'status': 'error', 'message': '遊戲種類不一致'}), 400
     
     # 執行邏輯驗證
     is_valid, reason = validate_game_logic(game_name, score, data, duration=duration)
@@ -309,12 +343,12 @@ def submit_score():
     if not is_valid:
         print(f"🚫 CHEAT BLOCKED: User {session['username']} | {game_name} | Score: {score} | Time: {duration:.2f}s | Reason: {reason}")
         
-        # 🔥 新增這行：自動標記為嫌疑犯
-        database.mark_user_suspect(session['user_id'])
+        # 自動標記為嫌疑犯
+        database.mark_user_suspect(user_id)
 
         return jsonify({'status': 'error', 'message': f'偵測到異常數據: {reason}'}), 400
 
-    database.insert_score(session['user_id'], game_name, score)
+    database.insert_score(user_id, game_name, score)
     return jsonify({'status': 'success'})
 
 @app.route('/api/get_rank/<g>')
@@ -362,4 +396,5 @@ def api_equip():
     return jsonify({'status': 'success'})
 
 if __name__ == '__main__':
+    # 開發時可用 debug=True，實際上線請改為 False 或使用 WSGI 伺服器
     app.run(host='0.0.0.0', debug=True, port=5000)
