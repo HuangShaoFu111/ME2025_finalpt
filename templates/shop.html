@@ -12,7 +12,7 @@
 
     <div class="user-menu">
         <div class="user-profile-btn" style="cursor: default;"> 
-            <div class="avatar-display">
+            <div class="avatar-display {% if user.equipped_frame %}{{ user.equipped_frame }}{% endif %}">
                 {% if user.avatar.startswith('http') %}
                     <img src="{{ user.avatar }}">
                 {% elif user.avatar == 'default.png' %}

@@ -115,10 +115,7 @@
             text-shadow: 0 0 10px var(--gold);
         }
 
-        /* Avatar frame styles */
-        .avatar-display.frame-neon-blue img { box-shadow: 0 0 14px rgba(34,211,238,0.8); border: 2px solid #22d3ee; }
-        .avatar-display.frame-gold-glow img { box-shadow: 0 0 16px rgba(250,204,21,0.9); border: 2px solid #facc15; }
-        .avatar-display.frame-cyber-pink img { box-shadow: 0 0 16px rgba(236,72,153,0.9); border: 2px solid #ec4899; }
+        /* Avatar frame styles - MOVED TO GLOBAL.CSS */
 
         /* Lobby effect layers */
         .lobby-effect {
@@ -186,7 +183,7 @@
 
     <div class="user-menu">
         <div class="user-profile-btn" style="cursor: default;">
-            <div class="avatar-display {% if user.equipped_frame %}frame-{{ user.equipped_frame }}{% endif %}">
+            <div class="avatar-display {% if user.equipped_frame %}{{ user.equipped_frame }}{% endif %}">
                 {% if user.avatar and user.avatar.startswith('http') %}
                     <img src="{{ user.avatar }}" alt="User">
                 {% elif user.avatar == 'default.png' or not user.avatar %}

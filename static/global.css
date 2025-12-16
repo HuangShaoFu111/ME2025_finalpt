@@ -142,7 +142,7 @@ input:focus {
     width: 40px; 
     height: 40px;
     border-radius: 50%;
-    overflow: hidden;
+    /* overflow: hidden; Removed to allow box-shadow/glow to show outside */
     flex-shrink: 0; 
 }
 
@@ -150,6 +150,25 @@ input:focus {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border: 2px solid transparent;
+    border-radius: 50%; /* Added to maintain circular shape without overflow:hidden */
+}
+
+/* Avatar frames (全站共用) */
+.avatar-display.frame-neon-blue img,
+.avatar-lg.frame-neon-blue {
+    box-shadow: 0 0 14px rgba(34,211,238,0.8);
+    border-color: #22d3ee !important;
+}
+.avatar-display.frame-gold-glow img,
+.avatar-lg.frame-gold-glow {
+    box-shadow: 0 0 16px rgba(250,204,21,0.9);
+    border-color: #facc15 !important;
+}
+.avatar-display.frame-cyber-pink img,
+.avatar-lg.frame-cyber-pink {
+    box-shadow: 0 0 16px rgba(236,72,153,0.9);
+    border-color: #ec4899 !important;
 }
 
 /* 玩家名稱文字 */

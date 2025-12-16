@@ -103,7 +103,7 @@
         {% endif %}
 
         <div style="margin-bottom: 30px;">
-            {% set frame_class = 'frame-' + user.equipped_frame if user.equipped_frame else '' %}
+            {% set frame_class = user.equipped_frame if user.equipped_frame else '' %}
             {% if user.avatar == 'default.png' %}
                 <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=0f172a&color=fff" class="avatar-lg {{ frame_class }}">
             {% else %}

@@ -312,10 +312,15 @@ def get_wallet_info(user_id):
         ).fetchone()
         total_score = row['total'] if row['total'] else 0
         user = conn.execute(
-            'SELECT spent_points FROM users WHERE id = ?',
+            'SELECT spent_points, is_admin FROM users WHERE id = ?',
             (user_id,),
         ).fetchone()
         spent = user['spent_points'] if user else 0
+
+        # 管理員：提供實質上無限的 tickets，方便測試商店
+        if user and user['is_admin']:
+            return {'total_earned': total_score, 'spent': spent, 'balance': 10**12}
+
         return {'total_earned': total_score, 'spent': spent, 'balance': total_score - spent}
     finally:
         conn.close()
