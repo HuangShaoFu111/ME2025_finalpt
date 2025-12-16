@@ -265,6 +265,7 @@
     display: flex;
     gap: 8px;
     z-index: 10;
+    margin-left: auto; /* 把按鈕推到最右側，避免壓到名字標籤 */
 }
 
 /* 警告按鈕 */
@@ -287,6 +288,28 @@
     color: black;
     transform: scale(1.1);
     box-shadow: 0 0 10px rgba(234, 179, 8, 0.4);
+}
+
+/* 解除嫌疑按鈕（與警告/刪除同尺寸） */
+.btn-clear-suspect {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(34, 197, 94, 0.08); /* 綠色系 */
+    color: #6ee7b7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.btn-clear-suspect:hover {
+    background: #22c55e;
+    color: #022c22;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
 }
 
 @keyframes pulseRed {
