@@ -269,7 +269,14 @@ def admin_details(uid):
     for r in scores:
         if r['game_name'] not in organized: organized[r['game_name']] = []
         organized[r['game_name']].append({'score':r['score'], 'date':r['timestamp'].split(' ')[0]})
-    return jsonify({'status':'success', 'username':target['username'], 'avatar':target['avatar'], 'scores':organized})
+    return jsonify({
+        'status': 'success',
+        'username': target['username'],
+        'avatar': target['avatar'],
+        'is_admin': bool(target['is_admin']),
+        'is_suspect': bool(getattr(target, 'is_suspect', target['is_suspect'] if 'is_suspect' in target.keys() else 0)),
+        'scores': organized
+    })
 
 # 新增管理員發送警告的 API
 @app.route('/admin/warn_user/<int:uid>', methods=['POST'])

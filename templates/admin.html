@@ -185,19 +185,6 @@
                 </div>
 
                 <div class="card-actions">
-                    {% if u.is_suspect and not u.is_admin %}
-                        <button class="btn-warn" 
-                                title="Send Warning"
-                                onclick="event.stopPropagation(); warnUser({{ u.id }}, '{{ u.username }}');">
-                            <i class="fa-solid fa-envelope-circle-check"></i>
-                        </button>
-                        <button class="btn-clear-suspect" 
-                                title="Clear Suspect Flag"
-                                onclick="event.stopPropagation(); clearSuspect({{ u.id }}, '{{ u.username }}');">
-                            <i class="fa-solid fa-bug-slash"></i>
-                        </button>
-                    {% endif %}
-
                     {% if u.id != user.id %}
                         <button class="btn-delete" 
                                 title="Delete User"
@@ -223,6 +210,14 @@
                 <div class="modal-title">
                     <h2 id="modalUsername">User Name</h2>
                     <p>PLAYER BATTLE RECORD</p>
+                </div>
+                <div id="modalActions" style="margin-left:auto; display:flex; gap:8px;">
+                    <button id="modalWarnBtn" class="btn-warn" title="Send Warning" style="display:none;">
+                        <i class="fa-solid fa-envelope-circle-check"></i>
+                    </button>
+                    <button id="modalClearSuspectBtn" class="btn-clear-suspect" title="Clear Suspect Flag" style="display:none;">
+                        <i class="fa-solid fa-bug-slash"></i>
+                    </button>
                 </div>
                 <button class="close-btn" onclick="closeModal()">×</button>
             </div>
@@ -333,6 +328,11 @@
         const modalScores = document.getElementById('modalScores');
         const modalUsername = document.getElementById('modalUsername');
         const modalAvatar = document.getElementById('modalAvatar');
+        const modalWarnBtn = document.getElementById('modalWarnBtn');
+        const modalClearSuspectBtn = document.getElementById('modalClearSuspectBtn');
+
+        let currentUserId = null;
+        let currentUsername = '';
 
         function openUserDetail(userId) {
             modalOverlay.classList.add('active');
@@ -342,12 +342,25 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
+                        currentUserId = userId;
+                        currentUsername = data.username;
                         // 設定頭像與名稱
                         modalUsername.innerText = data.username;
                         if(data.avatar === 'default.png') {
                             modalAvatar.src = `https://ui-avatars.com/api/?name=${data.username}&background=0f172a&color=fff`;
                         } else {
                             modalAvatar.src = `/static/uploads/${data.avatar}`;
+                        }
+
+                        // 根據角色 / 嫌疑狀態決定是否顯示操作按鈕
+                        const isAdmin = !!data.is_admin;
+                        const isSuspect = !!data.is_suspect;
+                        if (!isAdmin && isSuspect) {
+                            modalWarnBtn.style.display = 'flex';
+                            modalClearSuspectBtn.style.display = 'flex';
+                        } else {
+                            modalWarnBtn.style.display = 'none';
+                            modalClearSuspectBtn.style.display = 'none';
                         }
 
                         // 渲染分數
@@ -415,7 +428,23 @@
 
         function closeModal() {
             modalOverlay.classList.remove('active');
+            currentUserId = null;
+            currentUsername = '';
         }
+
+        // 綁定彈窗操作按鈕事件
+        modalWarnBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (currentUserId) {
+                warnUser(currentUserId, currentUsername);
+            }
+        });
+        modalClearSuspectBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (currentUserId) {
+                clearSuspect(currentUserId, currentUsername);
+            }
+        });
 
         // 點擊背景關閉
         modalOverlay.addEventListener('click', (e) => {
