@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專案路由流程圖 (16:9 黑色版)</title>
+    <!-- 使用最新的 Mermaid 10 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000000; /* 全黑背景 */
+            color: #e0e0e0; /* 淺灰文字 */
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            width: 100vw;
+            height: 100vh;
+            background-color: #1a1a1a; /* 卡片背景改為深灰 */
+            /* box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);  全螢幕不需要陰影 */
+            border: none;
+            border-radius: 0;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        h2 {
+            text-align: center;
+            color: #ffffff;
+            margin: 0 0 10px 0;
+            font-size: 1.8rem;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .mermaid-wrapper {
+            flex: 1;
+            /* overflow: auto;  <-- 移除捲軸，讓圖表自動縮放 */
+            overflow: hidden; 
+            display: flex;
+            justify-content: center; /* 居中對齊 */
+            align-items: center; 
+            padding: 0; /* 移除內距 */
+        }
+        /* 強制 SVG 填滿容器，但保持比例 (contain) */
+        .mermaid-wrapper svg {
+            width: 100%;
+            height: 100%;
+            max-width: none !important;
+        }
+        
+        /* 錯誤訊息樣式 */
+        #error-message {
+            display: none;
+            color: #ff8080;
+            background: #3a0000;
+            padding: 20px;
+            border: 1px solid #ff4040;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>ME2025 Final Project - 系統路由流程圖</h2>
+    <div id="error-message"></div>
+    <div class="mermaid-wrapper">
+        <pre class="mermaid">
+        %% 寬螢幕佈局：左至右
+        graph LR
+            
+            %% --- 1. 定義節點 (Nodes) ---
+            %% 使用 id["Label"] 格式，避免特殊字元混淆
+
+            %% Auth Group
+            Start((使用者進入))
+            Root["/ (Root)"]
+            IsLoggedIn{是否已登入?}
+            LoginPage["/ (登入頁)<br/>【login.html】"]
+            VerifyCreds{帳號密碼驗證}
+            RegisterPage["/register<br/>【register.html】"]
+            CheckUserExists{帳號是否存在?}
+            DB_Create[/"DB: Create User"\]
+            
+            %% Main
+            SetSession[設定 Session]
+            Lobby["/lobby (大廳)<br/>【index.html】"]
+
+            %% Game Group
+            GameRoute["/game/name"]
+            CheckGameValid{遊戲有效?}
+            NotFound["404 Error"]
+            RenderGame["【name.html】"]
+            API_Start[API: start_game]
+            API_Submit{防作弊驗證}
+            DB_Score[/"DB: Insert Score"\]
+            ReturnSuccess[JSON: Success]
+            DB_Suspect[/"DB: Mark Suspect"\]
+            ReturnError[JSON: Error]
+
+            %% Shop Group
+            ShopPage["/shop<br/>【shop.html】"]
+            API_Buy{餘額足夠?}
+            DB_Buy[/"DB: Deduct & Add"\]
+            JSON_Buy_OK[JSON: OK]
+            JSON_Buy_Fail[JSON: Fail]
+            
+            API_Equip{擁有物品?}
+            DB_Equip[/"DB: Update Equip"\]
+            JSON_Equip_OK[JSON: OK]
+
+            %% Profile Group
+            ProfilePage["/profile<br/>【profile.html】"]
+            DB_UpdateID[/"DB: Update Username"\]
+            DB_Avatar[/"Save File & DB"\]
+            DB_DelUser[/"DB: Delete User"\]
+
+            %% Admin Group
+            AdminPage["/admin"]
+            CheckAdmin{Is Admin?}
+            RenderAdminPanel["Admin Panel"]
+            DB_AdminDel[/"DB: Delete User"\]
+            DB_ClearSus[/"DB: Clear Flags"\]
+
+            %% Others
+            LeaderboardPage["/leaderboard"]
+            LogoutRoute["/logout"]
+
+            %% --- 2. 定義連線 (Edges) ---
+            
+            %% Auth Flow
+            Start --> Root
+            Root --> IsLoggedIn
+            IsLoggedIn -- No --> LoginPage
+            IsLoggedIn -- Yes --> Lobby
+
+            LoginPage -- "POST /login" --> VerifyCreds
+            VerifyCreds -- 失敗 --> LoginPage
+            VerifyCreds -- 成功 --> SetSession
+            SetSession --> Lobby
+
+            LoginPage -- "點擊註冊" --> RegisterPage
+            RegisterPage -- "POST /register" --> CheckUserExists
+            CheckUserExists -- Yes --> RegisterPage
+            CheckUserExists -- No --> DB_Create
+            DB_Create --> LoginPage
+
+            %% Lobby Navigation
+            Lobby -- "點擊遊戲" --> GameRoute
+            Lobby -- "點擊商店" --> ShopPage
+            Lobby -- "個人檔案" --> ProfilePage
+            Lobby -- "排行榜" --> LeaderboardPage
+            Lobby -- "登出" --> LogoutRoute
+            Lobby -- "Admin" --> AdminPage
+
+            %% Game Logic
+            GameRoute --> CheckGameValid
+            CheckGameValid -- No --> NotFound
+            CheckGameValid -- Yes --> RenderGame
+            RenderGame -- "API: start" --> API_Start
+            RenderGame -- "API: submit" --> API_Submit
+            API_Submit -- 通過 --> DB_Score
+            DB_Score --> ReturnSuccess
+            API_Submit -- 失敗 --> DB_Suspect
+            DB_Suspect --> ReturnError
+
+            %% Shop Logic
+            ShopPage -- "API: buy" --> API_Buy
+            API_Buy -- Yes --> DB_Buy
+            DB_Buy --> JSON_Buy_OK
+            API_Buy -- No --> JSON_Buy_Fail
+
+            ShopPage -- "API: equip" --> API_Equip
+            API_Equip -- Yes --> DB_Equip
+            DB_Equip --> JSON_Equip_OK
+
+            %% Profile Logic
+            ProfilePage -- "Update ID" --> DB_UpdateID
+            DB_UpdateID --> ProfilePage
+            ProfilePage -- "Upload Avatar" --> DB_Avatar
+            DB_Avatar --> ProfilePage
+            ProfilePage -- "Delete Account" --> DB_DelUser
+            DB_DelUser --> LogoutRoute
+
+            %% Admin Logic
+            AdminPage --> CheckAdmin
+            CheckAdmin -- No --> Root
+            CheckAdmin -- Yes --> RenderAdminPanel
+            RenderAdminPanel -- "API: delete" --> DB_AdminDel
+            RenderAdminPanel -- "API: clear" --> DB_ClearSus
+
+            %% Logout
+            LogoutRoute --> Root
+
+            %% --- 3. 定義樣式 (Dark Mode Styles) ---
+            
+            %% 定義深色模式專用類別
+            %% Page: 深藍底，亮藍邊，白字
+            classDef page fill:#0d47a1,stroke:#64b5f6,stroke-width:2px,color:#fff;
+            
+            %% Logic: 深黃褐底，黃邊，白字
+            classDef logic fill:#4a3b00,stroke:#fbc02d,stroke-width:2px,stroke-dasharray: 5 5,color:#fff;
+            
+            %% DB: 深綠底，亮綠邊，白字
+            classDef db fill:#1b5e20,stroke:#66bb6a,stroke-width:2px,shape:parallelogram,color:#fff;
+            
+            %% Start: 全黑底，白邊，白字
+            classDef start fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+
+            %% 套用樣式
+            class Start start;
+            class Root,IsLoggedIn,VerifyCreds,CheckUserExists,API_Start,API_Submit,API_Buy,API_Equip,CheckAdmin,LogoutRoute logic;
+            class LoginPage,RegisterPage,Lobby,GameRoute,RenderGame,ShopPage,ProfilePage,AdminPage,RenderAdminPanel,LeaderboardPage,NotFound page;
+            class DB_Create,DB_Score,DB_Suspect,DB_Buy,DB_Equip,DB_UpdateID,DB_Avatar,DB_DelUser,DB_AdminDel,DB_ClearSus db;
+        </pre>
+    </div>
+</div>
+
+<script>
+    // 明確執行渲染
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            mermaid.initialize({
+                startOnLoad: false,
+                securityLevel: 'loose',
+                theme: 'dark',
+                flowchart: {
+                    useMaxWidth: false,
+                    htmlLabels: true,
+                    curve: 'basis'
+                }
+            });
+            
+            mermaid.run().catch(err => {
+                console.error('Mermaid render error:', err);
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('error-message').textContent = '圖表渲染失敗: ' + err.message;
+            });
+        } catch (e) {
+            console.error('Initialization error:', e);
+            document.getElementById('error-message').style.display = 'block';
+            document.getElementById('error-message').textContent = '初始化失敗: ' + e.message;
+        }
+    });
+</script>
+
+</body>
+</html>

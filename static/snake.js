@@ -37,6 +37,7 @@
     }
 
     function initGame() {
+        resetState();
         isGameRunning = true;
         fetch('/api/start_game', {
             method: 'POST',
@@ -52,7 +53,7 @@
             if (dt > 500) accumulator = TICK_RATE; // 如果停滯太久，重置累積
             else accumulator += dt;
 
-            while (accumulator >= TICK_RATE) {
+            while (accumulator >= TICK_RATE && isGameRunning) {
                 update();
                 accumulator -= TICK_RATE;
             }
@@ -118,6 +119,9 @@
     function handleInput(e) {
         // 🛡️ 阻擋腳本模擬按鍵
         if(!e.isTrusted) return;
+
+        // 如果遊戲結束視窗開啟，禁止按鍵重啟
+        if (!modal.classList.contains("hidden")) return;
 
         if (!isGameRunning && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) initGame();
         if (!isGameRunning) return;
