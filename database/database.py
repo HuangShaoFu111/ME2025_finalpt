@@ -7,6 +7,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_NAME = str(BASE_DIR / 'arcade.db')
 
+# 定義遊戲分數換算 Tickets 的比例
+# 1 Score = ? Tickets
+# 難度調整：大幅降低比例，讓 2000 元的商品更有挑戰性
+GAME_TICKET_RATES = {
+    'snake': 2.0,     # 原本 10.0 -> 改為 2.0 (吃一顆蘋果 = 2 代幣)
+    'tetris': 0.01,   # 原本 0.1 -> 改為 0.01 (100 分 = 1 代幣)
+    'dino': 0.05,     # 原本 0.2 -> 改為 0.05 (20 分 = 1 代幣)
+    'whac': 0.1,      # 原本 0.2 -> 改為 0.1 (10 分 = 1 代幣)
+    'shaft': 0.2,     # 原本 0.5 -> 改為 0.2 (5 分 = 1 代幣)
+    'memory': 0.05,   # 原本 0.2 -> 改為 0.05 (20 分 = 1 代幣)
+}
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME, timeout=30.0)
@@ -20,6 +31,8 @@ def add_column_if_missing(cur, table, column_def):
     cols = [row[1] for row in cur.execute(f"PRAGMA table_info({table})").fetchall()]
     if column_name not in cols:
         cur.execute(f"ALTER TABLE {table} ADD COLUMN {column_def}")
+        return True
+    return False
 
 
 def init_db():
@@ -49,6 +62,8 @@ def init_db():
     add_column_if_missing(c, 'users', "equipped_frame TEXT DEFAULT ''")
     add_column_if_missing(c, 'users', "equipped_badge TEXT DEFAULT ''")
     add_column_if_missing(c, 'users', "equipped_effect TEXT DEFAULT ''")
+    add_column_if_missing(c, 'users', "is_suspect INTEGER DEFAULT 0")
+    add_column_if_missing(c, 'users', "warning_pending INTEGER DEFAULT 0")
 
     c.execute(
         '''
@@ -62,6 +77,15 @@ def init_db():
         )
     '''
     )
+    
+    # 新增 tickets_earned 欄位
+    if add_column_if_missing(c, 'scores', "tickets_earned INTEGER DEFAULT 0"):
+        print("Migrating existing scores to tickets...")
+        # 若是新加的欄位，執行一次性遷移，將舊分數轉換為 tickets
+        for game, rate in GAME_TICKET_RATES.items():
+            # 使用 ROUND 確保四捨五入，並轉為整數
+            c.execute(f"UPDATE scores SET tickets_earned = CAST(ROUND(score * {rate}) AS INTEGER) WHERE game_name = ?", (game,))
+        conn.commit()
 
     c.execute(
         '''
@@ -230,9 +254,13 @@ def get_all_users():
 def insert_score(user_id, game_name, score):
     conn = get_db_connection()
     try:
+        # 計算 tickets
+        rate = GAME_TICKET_RATES.get(game_name, 1.0) # 預設 1:1
+        tickets = int(round(score * rate))
+        
         conn.execute(
-            'INSERT INTO scores (user_id, game_name, score) VALUES (?, ?, ?)',
-            (user_id, game_name, score),
+            'INSERT INTO scores (user_id, game_name, score, tickets_earned) VALUES (?, ?, ?, ?)',
+            (user_id, game_name, score, tickets),
         )
         conn.commit()
     finally:
@@ -294,7 +322,7 @@ def get_all_scores_by_user(user_id):
     conn = get_db_connection()
     try:
         scores = conn.execute(
-            'SELECT game_name, score, timestamp FROM scores WHERE user_id = ? ORDER BY game_name ASC, score DESC',
+            'SELECT game_name, score, timestamp, tickets_earned FROM scores WHERE user_id = ? ORDER BY game_name ASC, score DESC',
             (user_id,),
         ).fetchall()
         return [dict(s) for s in scores]
@@ -306,11 +334,16 @@ def get_all_scores_by_user(user_id):
 def get_wallet_info(user_id):
     conn = get_db_connection()
     try:
+        # 修改：計算總 tickets (從 tickets_earned 欄位)
+        # 如果舊資料 tickets_earned 是 NULL (遷移前)，使用 coalesce 或預設值 (雖已遷移但保險起見)
         row = conn.execute(
-            'SELECT SUM(score) as total FROM scores WHERE user_id = ?',
+            'SELECT SUM(tickets_earned) as total FROM scores WHERE user_id = ?',
             (user_id,),
         ).fetchone()
-        total_score = row['total'] if row['total'] else 0
+        
+        # 如果剛遷移完但沒分數，total 為 None
+        total_tickets = row['total'] if row['total'] is not None else 0
+        
         user = conn.execute(
             'SELECT spent_points, is_admin FROM users WHERE id = ?',
             (user_id,),
@@ -319,9 +352,9 @@ def get_wallet_info(user_id):
 
         # 管理員：提供實質上無限的 tickets，方便測試商店
         if user and user['is_admin']:
-            return {'total_earned': total_score, 'spent': spent, 'balance': 10**12}
+            return {'total_earned': total_tickets, 'spent': spent, 'balance': 10**12}
 
-        return {'total_earned': total_score, 'spent': spent, 'balance': total_score - spent}
+        return {'total_earned': total_tickets, 'spent': spent, 'balance': total_tickets - spent}
     finally:
         conn.close()
 
@@ -437,5 +470,3 @@ def clear_warning_pending(user_id):
     conn.execute('UPDATE users SET warning_pending = 0 WHERE id = ?', (user_id,))
     conn.commit()
     conn.close()
-
-
